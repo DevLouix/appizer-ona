@@ -50,6 +50,11 @@ RUN mkdir -p /app/gradle/wrapper
 COPY template-app/gradle/wrapper/gradle-wrapper.jar /app/gradle/wrapper/gradle-wrapper.jar
 RUN chmod 644 /app/gradle/wrapper/gradle-wrapper.jar # Ensure readable by all
 
+# --- NEW: Copy debug.keystore to the project root in the container ---
+COPY template-app/debug.keystore /app/debug.keystore
+RUN chmod 600 /app/debug.keystore # Set restrictive permissions
+
+
 # Copy the Python generator scripts
 COPY generator /generator
 

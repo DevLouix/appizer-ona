@@ -1,7 +1,7 @@
 // template-app/app/build.gradle
 plugins {
     id 'com.android.application'
-    // id 'org.jetbrains.kotlin.android' // Uncomment if you're using Kotlin
+    // id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -18,15 +18,28 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // --- Custom build configs injected here ---
         {{CUSTOM_GRADLE_BUILD_CONFIGS}}
-        // --- End custom build configs ---
+    }
+
+    signingConfigs {
+        debug {
+            // --- CRITICAL FIX: Update path to debug.keystore ---
+            storeFile file('/app/debug.keystore') //# Point to the location copied in Dockerfile
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        // ... (release signingConfig commented out as before) ...
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
+        }
+        debug {
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {

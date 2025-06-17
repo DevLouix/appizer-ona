@@ -3,15 +3,15 @@ package com.example.app; // This will be updated by the Python script
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.graphics.Color;
 import android.view.WindowManager;
 import androidx.appcompat.app.AppCompatActivity;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.view.Gravity;
-import android.view.ViewGroup.LayoutParams;
 import android.widget.LinearLayout;
-import android.util.TypedValue; // For converting dp to px
+import android.util.TypedValue;
 
 public class SplashActivity extends AppCompatActivity {
 
@@ -27,7 +27,9 @@ public class SplashActivity extends AppCompatActivity {
 
         // Set the background color
         LinearLayout splashLayout = new LinearLayout(this);
-        splashLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        splashLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT));
         splashLayout.setOrientation(LinearLayout.VERTICAL);
         splashLayout.setGravity(Gravity.CENTER);
         splashLayout.setBackgroundColor(Color.parseColor("{{SPLASH_BACKGROUND_COLOR}}"));
@@ -36,39 +38,38 @@ public class SplashActivity extends AppCompatActivity {
         String splashType = "{{SPLASH_TYPE}}";
         if (splashType.equals("image")) {
             ImageView imageView = new ImageView(this);
-            // Assuming splash.png or the file name from config.splash.content is in drawable
-            // You should make sure your drawable resource name matches what's expected.
-            // For example, if config.splash.content is "my_custom_splash.png",
-            // you'd reference R.drawable.my_custom_splash
-            // For simplicity, assuming the copied image is always named "splash.png" or "my_splash.png"
-            // The resource_generator copies it with its original filename.
-            String splashContentName = "{{SPLASH_CONTENT}}"; // This placeholder will be the content value (e.g., "my_splash.png")
-            // Extract the name without extension for resource ID
-            String drawableName = splashContentName.substring(0, splashContentName.lastIndexOf('.'));
+            String splashContentName = "{{SPLASH_CONTENT}}";
+            int dotIndex = splashContentName.lastIndexOf('.');
+            String drawableName = dotIndex != -1
+                    ? splashContentName.substring(0, dotIndex)
+                    : splashContentName;
+
             int imageResId = getResources().getIdentifier(drawableName, "drawable", getPackageName());
 
             if (imageResId != 0) {
                 imageView.setImageResource(imageResId);
-                imageView.setScaleType(ImageView.ScaleType.FIT_CENTER); // Adjust scale type as needed
-                // Optionally set layout params for the image, e.g., max width/height
+                imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+
                 LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                );
-                imgParams.setMargins(0, 0, 0, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20, getResources().getDisplayMetrics())); // Example margin
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                imgParams.setMargins(0, 0, 0,
+                        (int) TypedValue.applyDimension(
+                                TypedValue.COMPLEX_UNIT_DIP,
+                                20,
+                                getResources().getDisplayMetrics()));
                 imageView.setLayoutParams(imgParams);
                 splashLayout.addView(imageView);
             } else {
-                // Fallback or error if image not found
                 TextView errorText = new TextView(this);
                 errorText.setText("Splash Image Not Found!");
                 errorText.setTextColor(Color.RED);
                 errorText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
                 splashLayout.addView(errorText);
             }
-        } else { // Default to color or text splash if not image
+        } else {
             TextView appNameText = new TextView(this);
-            appNameText.setText("{{APP_NAME}}"); // Use the app name for basic text splash
+            appNameText.setText("{{APP_NAME}}");
             appNameText.setTextColor(Color.parseColor("{{SPLASH_TEXT_COLOR}}"));
             appNameText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36);
             appNameText.setGravity(Gravity.CENTER);
@@ -78,12 +79,12 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(splashLayout);
 
         // Delay and then start MainActivity
-        new Handler().postDelayed(new Runnable() {
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
                 Intent intent = new Intent(SplashActivity.this, MainActivity.class);
                 startActivity(intent);
-                finish(); // Close splash activity
+                finish();
             }
         }, {{SPLASH_DURATION}});
     }

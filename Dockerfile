@@ -72,8 +72,21 @@ RUN echo "--- Installing Rust and Cargo ---" && \
     echo "✅ Rust and Cargo installed."
 
 # Add Cargo's bin directory to PATH for subsequent layers
-# This needs to be a separate ENV instruction, not inside a RUN command.
 ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Ensure the Rust toolchain is up-to-date (still good practice for core Tauri compilation)
+RUN echo "--- Updating Rust Toolchain ---" && \
+    rustup update stable --no-self-update && \
+    echo "✅ Rust Toolchain updated."
+
+# --- Tauri CLI Installation using NPM ---
+# This is preferred when you want to avoid direct Rust compilation issues for the CLI itself,
+# as npm might download pre-built binaries.
+# We will install it globally so the 'tauri' command is available directly.
+# Use version 1.5.0 to align with Cargo.toml, or 1.6.0 if 1.5.0 causes issues.
+RUN echo "--- Installing Tauri CLI (npm) ---" && \
+    cargo install tauri-cli --version "^2.0.0" --locked && \
+    echo "✅ Tauri CLI installed globally via npm."
 
 # --- iOS / MACOS BUILD TOOLS (IMPORTANT LIMITATION) ---
 # iOS and macOS applications require Xcode and a macOS environment to build.

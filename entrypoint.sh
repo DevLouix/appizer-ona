@@ -239,7 +239,7 @@ if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
     cd "${WINDOWS_PROJECT_ROOT}/src-tauri" || { echo "❌ Failed to change directory to ${WINDOWS_PROJECT_ROOT}/src-tauri."; exit 1; }
 
     echo "🚀 Starting Tauri build for Windows..."
-    cargo tauri build --release
+    cargo tauri build
     BUILD_STATUS=$?
 
     if [ $BUILD_STATUS -ne 0 ]; then

@@ -1,0 +1,23 @@
+# Tauri
+/src-tauri/target/
+/src-tauri/src/main.rs.bak
+/src-tauri/tauri.conf.json.bak
+/src-tauri/node_modules/
+/src-tauri/dist/
+/target/
+/dist/
+/out/
+
+# Dependency files
+Cargo.lock
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.exe
+*.msi
+*.deb
+*.appimage
+*.dmg

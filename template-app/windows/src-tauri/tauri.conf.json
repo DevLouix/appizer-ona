@@ -1,0 +1,65 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schemas/app-schema.json",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "../dist",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "{{APP_NAME}}",
+    "version": "{{APP_VERSION}}"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": true,
+      "shell": {
+        "all": true,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": ["msi"],
+      "identifier": "{{BUNDLE_IDENTIFIER}}",
+      "icon": [
+        "icons/icon.png"
+      ],
+      "resources": [],
+      "externalBin": [],
+      "copyright": "",
+      "category": "DeveloperTool",
+      "shortDescription": "",
+      "longDescription": "",
+      "deb": {
+        "depends": []
+      },
+      "macOS": {
+        "frameworks": [],
+        "defaultLang": "en",
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "entitlements": null
+      },
+      "windows": {
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "{{APP_TITLE}}",
+        "width": {{WEBAPP_WIDTH}},
+        "height": {{WEBAPP_HEIGHT}},
+        "resizable": {{WEBAPP_RESIZABLE}},
+        "fullscreen": false,
+        "decorations": {{WEBAPP_DECORATIONS}},
+        "visible": true,
+        "url": "{{WEBAPP_URL}}"
+      }
+    ]
+  }
+}

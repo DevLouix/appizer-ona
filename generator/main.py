@@ -5,89 +5,135 @@ import sys
 
 # Import functions from your src package
 from modifiers.android import inject_into_android_files
-
-def load_config(config_path):
-    """Loads configuration from a YAML file."""
-    print(f"  [main.py] Inside load_config. Checking if config file exists: {config_path}")
-    if not os.path.exists(config_path):
-        print(f"  [main.py] Error: Config file NOT found at {config_path} (from os.path.exists).")
-        sys.exit(1)
-    if not os.path.isfile(config_path):
-        print(f"  [main.py] Error: Config path {config_path} is not a file.")
-        sys.exit(1)
-    if not os.access(config_path, os.R_OK):
-        print(f"  [main.py] Error: Config file {config_path} is not readable (Permission denied).")
-        sys.exit(1)
-
-    try:
-        print(f"  [main.py] Attempting to open config file: {config_path}")
-        with open(config_path, "r", encoding="utf-8") as f:
-            print(f"  [main.py] File {config_path} opened successfully. Attempting yaml.safe_load...")
-            config_data = yaml.safe_load(f)
-            print(f"  [main.py] yaml.safe_load completed.")
-            return config_data
-    except FileNotFoundError: # Should be caught by exists check, but as a fallback
-        print(f"  [main.py] Error: Config file not found at {config_path} (during open).")
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"  [main.py] Error parsing config file {config_path}: {e}")
-        # Print the YAML content for inspection if it's a parsing error
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                print("\n  [main.py] --- Content of config.yaml (for debugging) ---")
-                print(f.read())
-                print("  [main.py] ---------------------------------------------\n")
-        except Exception as read_e:
-            print(f"  [main.py] Could not read config.yaml content for debug: {read_e}")
-        sys.exit(1)
-    except Exception as e: # Catch any other unexpected errors during loading
-        print(f"  [main.py] An unexpected error occurred while loading config {config_path}: {e}")
-        sys.exit(1)
+from utils.config_loader import load_yaml_file, merge_configs
+# from modifiers.ios import inject_into_ios_files # Future: Uncomment and implement
+# from modifiers.linux import inject_into_linux_files # Future: Uncomment and implement
+from modifiers.windows import inject_into_windows_files # Future: Uncomment and implement
+# from modifiers.macos import inject_into_macos_files # Future: Uncomment and implement
 
 
 if __name__ == "__main__":
-    print(f"  [main.py] Script started. sys.argv: {sys.argv}") # Early debug print
-    if len(sys.argv) < 4:
-        print("Usage: python3 main.py <android_project_root> <input_assets_dir> <container_project_root>")
+    print(f"  [main.py] Script started. sys.argv: {sys.argv}")
+
+    # Expected arguments:
+    # 1. android_project_root_in_container (e.g., /app/android)
+    # 2. ios_project_root_in_container (e.g., /app/ios_project)
+    # 3. linux_project_root_in_container (e.g., /app/linux_project)
+    # 4. windows_project_root_in_container (e.g., /app/windows_project)
+    # 5. macos_project_root_in_container (e.g., /app/macos_project)
+    # 6. input_assets_dir (e.g., /input-assets)
+    # 7. container_multi_platform_root (e.g., /app)
+    # 8. platform (e.g., "android")
+    if len(sys.argv) < 9: # Script name + 8 args
+        print("Usage: python3 main.py <android_proj_root> <ios_proj_root> <linux_proj_root> <windows_proj_root> <macos_proj_root> <input_assets_dir> <container_multi_platform_root> <platform>")
         sys.exit(1)
 
-    android_project_src_main_dir = sys.argv[1] # e.g., /app/app/src/main
-    input_assets_dir = sys.argv[2]             # e.g., /input-assets
-    container_project_root = sys.argv[3]       # e.g., /app
+    # Assign received arguments to descriptive variables
+    android_project_root_in_container = sys.argv[1]
+    ios_project_root_in_container = sys.argv[2]
+    linux_project_root_in_container = sys.argv[3]
+    windows_project_root_in_container = sys.argv[4]
+    macos_project_root_in_container = sys.argv[5]
+    input_assets_dir = sys.argv[6]
+    container_multi_platform_root = sys.argv[7]
+    platform = sys.argv[8]
 
     generator_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file_path = os.path.join(generator_dir, "config.yaml")
+    active_config_path = os.path.join(generator_dir, "config.yaml") # This is what entrypoint.sh copied/merged
 
-    print(f"Loading configuration from: {config_file_path}")
-    
-    # Add a check here immediately before load_config
-    if not os.path.exists(config_file_path):
-        print(f"  [main.py] PRE-LOAD CHECK: Config file {config_file_path} does not exist before calling load_config!")
+    full_config = load_yaml_file(active_config_path, "active config file")
+    if full_config is None:
         sys.exit(1)
-    elif not os.access(config_file_path, os.R_OK):
-        print(f"  [main.py] PRE-LOAD CHECK: Config file {config_file_path} exists but is not readable!")
-        sys.exit(1)
-    else:
-        print(f"  [main.py] PRE-LOAD CHECK: Config file {config_file_path} exists and is readable. Proceeding to load_config.")
+
+    print("✅ Configuration (from active_config_path) loaded successfully in main.py.")
+    print(f"  [main.py] Target platform(s) for Python modification: {platform}")
+
+    # Extract common and platform-specific configs
+    common_app_name = full_config.get("app_name", "")
+    common_package_name = full_config.get("package_name", "") # Base package/bundle ID
+    common_url = full_config.get("url", "") # Base URL
+
+    platform_specific_configs = full_config.get("platform_config", {})
+
+    try:
+        # --- Android Modifier Call ---
+        if platform == "all" or platform == "android":
+            print("--- [main.py] Invoking Android file modification ---")
+            android_config_data = platform_specific_configs.get("android", {})
+            merged_android_config = {
+                "app_name": android_config_data.get("app_name", common_app_name),
+                "package_name": android_config_data.get("package_name", common_package_name),
+                "url": android_config_data.get("url", common_url),
+                **android_config_data
+            }
+            inject_into_android_files(merged_android_config, android_project_root_in_container, container_multi_platform_root, input_assets_dir)
+        else:
+            print(f"--- [main.py] Skipping Android file modification for platform: {platform} ---")
+
+        # --- iOS Modifier Call (Placeholder) ---
+        if platform == "all" or platform == "ios":
+            print("--- [main.py] Invoking iOS file modification (Placeholder) ---")
+            ios_config_data = platform_specific_configs.get("ios", {})
+            merged_ios_config = {
+                "app_name": ios_config_data.get("app_name", common_app_name),
+                "package_name": ios_config_data.get("package_name", common_package_name), # Can be overridden by ios_config_data['build']['bundle_identifier']
+                "url": ios_config_data.get("url", common_url),
+                **ios_config_data
+            }
+            # inject_into_ios_files(merged_ios_config, ios_project_root_in_container, container_multi_platform_root, input_assets_dir)
+            pass
+        else:
+            print(f"--- [main.py] Skipping iOS file modification for platform: {platform} ---")
+
+        # --- Linux Modifier Call (Placeholder) ---
+        if platform == "all" or platform == "linux":
+            print("--- [main.py] Invoking Linux file modification (Placeholder) ---")
+            linux_config_data = platform_specific_configs.get("linux", {})
+            merged_linux_config = {
+                "app_name": linux_config_data.get("app_name", common_app_name),
+                "package_name": linux_config_data.get("package_name", common_package_name),
+                "url": linux_config_data.get("url", common_url),
+                **linux_config_data
+            }
+            # inject_into_linux_files(merged_linux_config, linux_project_root_in_container, container_multi_platform_root, input_assets_dir)
+            pass
+        else:
+            print(f"--- [main.py] Skipping Linux file modification for platform: {platform} ---")
+
+        # --- Windows Modifier Call ---
+        if platform == "all" or platform == "windows":
+            print("--- [main.py] Invoking Windows file modification ---")
+            windows_config_data = platform_specific_configs.get("windows", {})
+            merged_windows_config = {
+                "app_name": windows_config_data.get("app_name", common_app_name),
+                "package_name": windows_config_data.get("package_name", common_package_name), # Base package/bundle ID
+                "url": windows_config_data.get("url", common_url), # Base URL
+                **windows_config_data # Platform-specific overrides
+            }
+            # Pass windows_project_root_in_container and input_assets_dir
+            inject_into_windows_files(merged_windows_config, windows_project_root_in_container, container_multi_platform_root, input_assets_dir)
+        else:
+            print(f"--- [main.py] Skipping Windows file modification for platform: {platform} ---")
+
+        # --- macOS Modifier Call (Placeholder) ---
+        if platform == "all" or platform == "macos":
+            print("--- [main.py] Invoking macOS file modification (Placeholder) ---")
+            macos_config_data = platform_specific_configs.get("macos", {})
+            merged_macos_config = {
+                "app_name": macos_config_data.get("app_name", common_app_name),
+                "package_name": macos_config_data.get("package_name", common_package_name),
+                "url": macos_config_data.get("url", common_url),
+                **macos_config_data
+            }
+            # inject_into_macos_files(merged_macos_config, macos_project_root_in_container, container_multi_platform_root, input_assets_dir)
+            pass
+        else:
+            print(f"--- [main.py] Skipping macOS file modification for platform: {platform} ---")
 
 
-    config = load_config(config_file_path)
-
-    if config:
-        print("Configuration loaded successfully.")
-        print(f"  [main.py] Parsed config content snippet: {list(config.keys()) if config else 'Empty config'}") # Debug snippet
-        print(f"Android app src/main directory: {android_project_src_main_dir}")
-        print(f"Input assets directory: {input_assets_dir}")
-        print(f"Container project root: {container_project_root}")
-
-        try:
-            inject_into_android_files(config, android_project_src_main_dir, container_project_root, input_assets_dir)
-            print("Python generator finished successfully.")
-        except Exception as e:
-            print(f"❌ Python generator failed with an unhandled exception: {e}")
-            import traceback
-            traceback.print_exc() # Print full traceback for deeper debugging
-            sys.exit(1)
-    else:
-        print("Failed to load configuration. Exiting.")
+        print("Python generator finished successfully.")
+    except Exception as e:
+        print(f"❌ Python generator failed with an unhandled exception: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)

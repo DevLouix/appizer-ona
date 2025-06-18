@@ -1,132 +1,94 @@
 # android/utils/logo.py
-from PIL import Image, ImageOps
 import os
-import urllib.request
-import io
-import io
-import shutil
+from PIL import Image, ImageDraw, ImageFont # Pillow for image generation
+import requests
+from io import BytesIO
+import math
 
-# Standard Android densities and their corresponding icon sizes (in dp for base, px for xhdpi)
-sizes = {
-    "mdpi": 48,
-    "hdpi": 72,
-    "xhdpi": 96,
-    "xxhdpi": 144,
-    "xxxhdpi": 192
+# Define Android mipmap densities and their corresponding sizes for a 48dp icon
+ANDROID_ICON_DENSITIES = {
+    "mdpi": 48,   # 1x
+    "hdpi": 72,   # 1.5x
+    "xhdpi": 96,  # 2x
+    "xxhdpi": 144, # 3x
+    "xxxhdpi": 192 # 4x
 }
 
-
-def generate_launcher_icons(logo_path, android_res_path, background_color="#FFFFFF"):
+def generate_launcher_icons(image_path, android_res_path, theme_color="#FFFFFF"):
     """
-    Generates Android launcher icons (legacy and adaptive) from a source logo.
+    Generates Android launcher icons from a source image or creates defaults.
 
     Args:
-        logo_path (str): Path to the source logo image (local or URL).
-        android_res_path (str): Path to the Android 'res' directory (e.g., 'android/app/src/main/res').
-        background_color (str): Hex color code for the adaptive icon background.
+        image_path (str): Path to the source image (local file or URL), or empty string to generate default.
+        android_res_path (str): Path to the Android project's 'res' directory.
+        theme_color (str): The theme color for adaptive icons background (if applicable).
     """
-    print("\n--- [Resource Generator] Generating Launcher Icons ---")
-    try:
-        img = None
-        # 1. Load image (URL or local)
-        if logo_path.startswith("http"):
-            print(f"  [Icons] 🌐 Downloading logo from {logo_path}...")
-            try:
-                with urllib.request.urlopen(logo_path, timeout=10) as response: # Added timeout
-                    img_data = response.read()
-                img = Image.open(io.BytesIO(img_data)).convert("RGBA")
-                print(f"  [Icons] ✅ Logo downloaded successfully.")
-            except urllib.error.URLError as e:
-                print(f"  [Icons] ❌ URL Error downloading logo from {logo_path}: {e}")
-                return False
-            except Exception as e:
-                print(f"  [Icons] ❌ General error downloading/opening remote logo {logo_path}: {e}")
-                return False
-        else:
-            if not os.path.exists(logo_path):
-                print(f"  [Icons] ❌ Error: Local logo file not found at {logo_path}.")
-                return False
-            print(f"  [Icons] 📂 Using local logo at {logo_path}")
-            try:
-                img = Image.open(logo_path).convert("RGBA")
-                print(f"  [Icons] ✅ Local logo opened successfully.")
-            except Exception as e:
-                print(f"  [Icons] ❌ Error opening local logo file {logo_path}: {e}")
-                return False
+    print(f"  [Resource Gen] Generating launcher icons from: '{image_path}'...")
 
-        if img is None:
-            print("  [Icons] ❌ No logo image could be loaded. Skipping icon generation.")
-            return False
-
-        # 2. Create mipmap folders and save legacy icons (ic_launcher.png)
-        for density, size in sizes.items():
-            mipmap_dir = os.path.join(android_res_path, f"mipmap-{density}")
-            try:
-                os.makedirs(mipmap_dir, exist_ok=True)
-                resized = img.resize((size, size), Image.LANCZOS)
-                icon_path = os.path.join(mipmap_dir, "ic_launcher.png")
-                resized.save(icon_path, format="PNG")
-                print(f"  [Icons] ✅ Saved legacy icon: {os.path.relpath(icon_path, android_res_path)}")
-            except (OSError, IOError, PermissionError) as e:
-                print(f"  [Icons] ❌ Error saving legacy icon to {mipmap_dir}: {e}. Check permissions or disk space.")
-                return False
-            except Exception as e:
-                print(f"  [Icons] ❌ Unexpected error during legacy icon generation for {density}: {e}")
-                return False
-
-        # 3. Prepare for Adaptive Icons (Android 8.0+)
-        adaptive_dir = os.path.join(android_res_path, "mipmap-anydpi-v26")
+    base_image = None
+    if image_path:
         try:
-            os.makedirs(adaptive_dir, exist_ok=True)
-            print(f"  [Icons] Ensured adaptive icon directory: {os.path.relpath(adaptive_dir, android_res_path)}")
-
-            adaptive_canvas_size = 108
-            fg_icon = ImageOps.contain(img, (adaptive_canvas_size, adaptive_canvas_size))
-
-            fg_path = os.path.join(adaptive_dir, "ic_launcher_foreground.png")
-            fg_icon.save(fg_path, format="PNG")
-            print(f"  [Icons] ✅ Saved adaptive foreground: {os.path.relpath(fg_path, android_res_path)}")
-
-            bg_icon = Image.new("RGBA", (adaptive_canvas_size, adaptive_canvas_size), background_color)
-            bg_path = os.path.join(adaptive_dir, "ic_launcher_background.png")
-            bg_icon.save(bg_path, format="PNG")
-            print(f"  [Icons] ✅ Saved adaptive background: {os.path.relpath(bg_path, android_res_path)}")
-
-            # --- Create Adaptive Icon XMLs ---
-            # ic_launcher.xml
-            ic_launcher_xml_content = f"""<?xml version="1.0" encoding="utf-8"?>
-                <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-                    <background android:drawable="@mipmap/ic_launcher_background"/>
-                    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-                </adaptive-icon>
-                """
-            ic_launcher_xml_path = os.path.join(adaptive_dir, "ic_launcher.xml")
-            with open(ic_launcher_xml_path, "w") as f:
-                f.write(ic_launcher_xml_content)
-            print(f"  [Icons] ✅ Created adaptive icon XML: {os.path.relpath(ic_launcher_xml_path, android_res_path)}")
-
-            # ic_launcher_round.xml
-            ic_launcher_round_xml_content = f"""<?xml version="1.0" encoding="utf-8"?>
-                <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-                    <background android:drawable="@mipmap/ic_launcher_background"/>
-                    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-                </adaptive-icon>
-                """
-            ic_launcher_round_xml_path = os.path.join(adaptive_dir, "ic_launcher_round.xml")
-            with open(ic_launcher_round_xml_path, "w") as f:
-                f.write(ic_launcher_round_xml_content)
-            print(f"  [Icons] ✅ Created adaptive round icon XML: {os.path.relpath(ic_launcher_round_xml_path, android_res_path)}")
-
-        except (OSError, IOError, PermissionError) as e:
-            print(f"  [Icons] ❌ Error saving adaptive icons or XMLs to {adaptive_dir}: {e}. Check permissions or disk space.")
-            return False
+            if image_path.startswith("http"):
+                response = requests.get(image_path)
+                response.raise_for_status()
+                base_image = Image.open(BytesIO(response.content)).convert("RGBA")
+                print(f"  [Resource Gen] Downloaded image from URL: {image_path}")
+            else:
+                base_image = Image.open(image_path).convert("RGBA")
+                print(f"  [Resource Gen] Loaded local image: {image_path}")
         except Exception as e:
-            print(f"  [Icons] ❌ Unexpected error during adaptive icon generation: {e}")
-            return False
+            print(f"  [Resource Gen] ⚠️ Warning: Could not load image from '{image_path}': {e}. Generating default icons instead.")
+            base_image = None # Fallback to default generation
 
-        print("--- [Resource Generator] Launcher Icon Generation Complete ---")
-        return True
-    except Exception as e: # Catch any top-level unhandled exceptions
-        print(f"--- [Resource Generator] ❌ Critical Error in generate_launcher_icons: {e} ---")
-        return False
-  
+    if base_image is None:
+        print("  [Resource Gen] Creating default square launcher icons.")
+        # Create a simple default square image if no valid image_path
+        # Use a consistent base size, e.g., 512x512, for scaling
+        default_size = 512
+        base_image = Image.new("RGBA", (default_size, default_size), (0, 0, 0, 0)) # Transparent background
+        draw = ImageDraw.Draw(base_image)
+        # Draw a simple shape or text
+        # Dark grey background with white text
+        draw.rectangle([0, 0, default_size, default_size], fill="#607D8B") # Material Grey 500
+        try:
+            # Try to load a default font, fall back if not found
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" # Common Linux path
+            if os.path.exists(font_path):
+                font = ImageFont.truetype(font_path, int(default_size * 0.4))
+            else:
+                font = ImageFont.load_default()
+        except Exception:
+            font = ImageFont.load_default()
+
+        text = "APP"
+        text_bbox = draw.textbbox((0,0), text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        text_x = (default_size - text_width) / 2
+        text_y = (default_size - text_height) / 2
+        draw.text((text_x, text_y), text, fill=(255, 255, 255), font=font) # White text
+
+    # Generate icons for each density
+    for density, size_dp in ANDROID_ICON_DENSITIES.items():
+        mipmap_dir = os.path.join(android_res_path, f"mipmap-{density}")
+        os.makedirs(mipmap_dir, exist_ok=True)
+
+        # Scale for square icon (ic_launcher.png)
+        square_icon = base_image.resize((size_dp, size_dp), Image.Resampling.LANCZOS)
+        square_icon.save(os.path.join(mipmap_dir, "ic_launcher.png"))
+        print(f"  [Resource Gen] Created {density}/ic_launcher.png ({size_dp}x{size_dp}).")
+
+        # Scale for round icon (ic_launcher_round.png)
+        # Create a circle mask
+        round_icon = Image.new("RGBA", (size_dp, size_dp), (0, 0, 0, 0))
+        mask = Image.new("L", (size_dp, size_dp), 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.ellipse((0, 0, size_dp, size_dp), fill=255)
+        
+        # Apply the mask
+        round_icon.paste(square_icon, (0, 0), mask)
+        round_icon.save(os.path.join(mipmap_dir, "ic_launcher_round.png"))
+        print(f"  [Resource Gen] Created {density}/ic_launcher_round.png ({size_dp}x{size_dp}, round).")
+
+    print("  [Resource Gen] Launcher icon generation complete.")
+

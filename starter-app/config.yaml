@@ -1,0 +1,114 @@
+# --- Core Application Settings (Common to all platforms) ---
+app_name: "DL-Appic"
+package_name: "com.devlouix.webviewapp"
+author: "Devlouix"
+url: "https://www.google.com"
+
+# --- Platform-Specific Configurations ---
+platform_config:
+  android:
+    logo: "" # No default logo
+
+    splash:
+      type: "color" # Default to color splash for simplicity
+      content: "" # No default image content
+      duration: 1500
+      background_color: "#FFFFFF"
+      text_color: "#000000"
+
+    webapp:
+      enable_javascript: true
+      allow_file_access: false
+      orientation: "portrait"
+      fullscreen: true
+      theme_color: "#4285F4" # Google Blue
+      user_agent: ""
+      built_in_zoom_controls: false
+      support_zoom: false
+
+    build:
+      build_type: "release" # Can be "debug" or "release" use release for production
+      min_sdk_version: 21
+      compile_sdk_version: 34
+      target_sdk_version: 34
+      build_tools_version: "34.0.0"
+      version_code: 1
+      version_name: "1.0.0"
+      gradle_custom_configs: {} # Empty dict by default
+
+    signing: # NEW SECTION FOR ANDROID SIGNING
+      # Path to the keystore file *inside the Docker container*.
+      # You will mount your host keystore to this path.
+      keystore_file_in_container: "/build/android/keystores/production.keystore"
+      keystore_password: "YOUR_KEYSTORE_PASSWORD" # VERY IMPORTANT: DO NOT COMMIT REAL PASSWORDS!
+      key_alias: "your_key_alias"
+      key_password: "YOUR_KEYSTORE_PASSWORD" # VERY IMPORTANT: DO NOT COMMIT REAL PASSWORDS!`
+
+
+  ios:
+    build:
+      target_os_version: "14.0"
+      build_scheme: "DefaultiOSApp"
+      bundle_identifier: "com.default.iosapp"
+      version_string: "1.0.0"
+      build_number: 1
+    webapp:
+      enable_javascript: true
+      fullscreen: true
+      theme_color: "#F8F8F8" # Light gray
+      user_agent: ""
+    logo: ""
+    splash:
+      type: "color"
+      content: ""
+      duration: 1500
+      background_color: "#FFFFFF"
+
+  linux:
+    build:
+      architecture: "x64"
+      version: "1.0.0"
+      app_id: "com.default.linuxapp"
+      product_name: "Default Linux App"
+      package_format: "deb"
+    webapp:
+      width: 1280
+      height: 800
+      resizable: true
+      frameless: false
+      background_color: "#FFFFFF"
+      user_agent: ""
+    icon: ""
+
+  windows:
+    build:
+      architecture: "x64"
+      version: "0.1.0"
+      app_id: "com.default.windowswebview"
+      product_name: "Default Windows App"
+      output_format: "msi"
+    webapp:
+      width: 1024
+      height: 768
+      resizable: true
+      frameless: false # Default to framed window
+      background_color: "#FFFFFF"
+      user_agent: ""
+      # url: "" # Inherits from top-level `url` by default
+    icon: "" # No default icon; use placeholder.png from template-app/windows_project/src-tauri/icons
+
+  macos:
+    build:
+      architecture: "x64"
+      version: "1.0.0"
+      app_id: "com.default.macosapp"
+      product_name: "Default macOS App"
+      output_format: "dmg"
+    webapp:
+      width: 1280
+      height: 800
+      resizable: true
+      frameless: false
+      background_color: "#FFFFFF"
+      user_agent: ""
+    icon: ""

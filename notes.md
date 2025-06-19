@@ -1,0 +1,1 @@
+INPUT_ASSETS_DIR = the local webpage assets dir

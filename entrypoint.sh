@@ -236,9 +236,11 @@ fi
 # Windows Desktop Build
 if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
     echo "--- Windows Desktop Build (Tauri) ---"
-    cd "${WINDOWS_PROJECT_ROOT}/src-tauri" || { echo "❌ Failed to change directory to ${WINDOWS_PROJECT_ROOT}/src-tauri."; exit 1; }
+    cd "${WINDOWS_PROJECT_ROOT}" || { echo "❌ Failed to change directory to ${WINDOWS_PROJECT_ROOT}."; exit 1; }
 
     echo "🚀 Starting Tauri build for Windows..."
+    ls
+
     cargo tauri build
     BUILD_STATUS=$?
 

@@ -1,51 +1,13 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schemas/app-schema.json",
+  "productName": "{{APP_NAME}}",
+  "version": "{{APP_VERSION}}",
   "build": {
-    "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devPath": "../dist",
-    "distDir": "../dist"
+    "beforeDevCommand": "",
+    "devUrl": "{{WEBAPP_URL}}",
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "{{APP_NAME}}",
-    "version": "{{APP_VERSION}}"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": true,
-      "shell": {
-        "all": true,
-        "open": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "targets": ["msi"],
-      "identifier": "{{BUNDLE_IDENTIFIER}}",
-      "icon": [
-        "icons/icon.png"
-      ],
-      "resources": [],
-      "externalBin": [],
-      "copyright": "",
-      "category": "DeveloperTool",
-      "shortDescription": "",
-      "longDescription": "",
-      "deb": {
-        "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "defaultLang": "en",
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "entitlements": null
-      },
-      "windows": {
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+  "app": {
     "security": {
       "csp": null
     },
@@ -57,9 +19,24 @@
         "resizable": {{WEBAPP_RESIZABLE}},
         "fullscreen": false,
         "decorations": {{WEBAPP_DECORATIONS}},
-        "visible": true,
-        "url": "{{WEBAPP_URL}}"
+        "visible": true
       }
     ]
-  }
+  },
+  "identifier": "{{BUNDLE_IDENTIFIER}}",
+  "bundle": {
+    "active": true,
+    "targets": ["msi"],
+    "icon": ["icons/icon.png"],
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "allowDowngrades": true,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      }
+    }
+  },
+  "plugins": {}
 }

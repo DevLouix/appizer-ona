@@ -1,41 +1,67 @@
-# Dockerfile
-# Base image: OpenJDK for Java/Gradle builds (Android requires Java)
-FROM openjdk:17-slim
+# Stage 1: Base Image and System Dependencies
+# Using Ubuntu 22.04 LTS for its modern and stable package repositories.
+FROM ubuntu:22.04
 
-# LABEL for clarity
+# Set non-interactive frontend to avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# LABEL for clarity and maintenance
 LABEL maintainer="Your Name/Org"
-LABEL description="Multi-Platform WebView App Builder with pre-installed Android, NodeJS, and Rust tools."
+LABEL description="Multi-Platform App Builder based on Ubuntu 22.04 with Java, Android, NodeJS, and Rust."
 
-# --- GLOBAL SYSTEM DEPENDENCIES ---
-# Install essential tools required by various SDKs or Python scripts
-# build-essential, pkg-config, libssl-dev are common for Node.js/Rust native modules
+# --- GLOBAL SYSTEM DEPENDENCIES & JAVA ---
+# Install all essential tools, including OpenJDK 17, from the official Ubuntu repos.
+# This single layer is more efficient and ensures all dependencies are met.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    unzip \
+    # Java Development Kit
+    openjdk-17-jdk-headless \
+    # Essential build tools
+    build-essential \
+    pkg-config \
+    # Source control and networking
     git \
+    curl \
     wget \
+    # Archive tools
     zip \
+    unzip \
+    xz-utils \
+    # Python
     python3 \
     python3-pip \
+    # Tauri (GTK/WebKit) dependencies for Linux builds/cross-compilation
+    libssl-dev \
+    libglib2.0-dev \
+    libwebkit2gtk-4.1-dev \
+    libgtk-3-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    # Other native module dependencies
     libgl1 \
     libjpeg-dev \
     libfreetype6-dev \
-    build-essential \
-    pkg-config \
-    libssl-dev \
-    # Clean up APT cache to reduce image size
+    liblzma-dev \
+    libudev-dev \
+    ca-certificates \
+    clang \
+    libicu-dev \
+    # Clean up APT cache to reduce final image size
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Install Python packages (pyyaml is crucial for config parsing, Pillow for image processing, requests for http reqs)
+# --- ENVIRONMENT VARIABLES ---
+# Set up all necessary environment variables for the build tools.
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV ANDROID_HOME=/opt/android-sdk
+ENV ANDROID_COMPILE_SDK_VERSION=34
+ENV ANDROID_BUILD_TOOLS_VERSION="34.0.0"
+ENV PATH="${JAVA_HOME}/bin:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:/root/.cargo/bin:${PATH}"
+ENV PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+
+# Install essential Python packages for helper scripts
 RUN pip3 install --no-cache-dir Pillow pyyaml requests
 
 # --- ANDROID BUILD TOOLS INSTALLATION ---
-# All Android SDK components are installed here.
-# Set ANDROID_HOME globally for the image for convenience
-ENV ANDROID_HOME=/opt/android-sdk
-ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
-
 RUN echo "--- Installing Android SDK Command-Line Tools ---" && \
     mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     cd ${ANDROID_HOME}/cmdline-tools && \
@@ -45,12 +71,7 @@ RUN echo "--- Installing Android SDK Command-Line Tools ---" && \
     mv cmdline-tools latest && \
     echo "✅ Android Command-Line Tools installed."
 
-# Accept SDK licenses and install necessary platforms/build-tools/platform-tools
-# These are the versions that will be PRE-INSTALLED in the image.
-# Align these with your default_config.yaml Android build settings.
-ENV ANDROID_COMPILE_SDK_VERSION=34
-ENV ANDROID_BUILD_TOOLS_VERSION="34.0.0"
-
+# Accept SDK licenses and install necessary platforms/build-tools
 RUN echo "--- Accepting Android SDK Licenses and Installing Components ---" && \
     yes | sdkmanager --licenses && \
     sdkmanager "platforms;android-${ANDROID_COMPILE_SDK_VERSION}" \
@@ -58,72 +79,52 @@ RUN echo "--- Accepting Android SDK Licenses and Installing Components ---" && \
                "platform-tools" && \
     echo "✅ Android SDK components installed."
 
-# --- NODE.JS (FOR ELECTRON, REACT NATIVE, ETC. DESKTOP/WEB-BASED APPS) ---
-# Install Node.js LTS version using NodeSource repository
+# --- NODE.JS INSTALLATION ---
+# Install Node.js LTS version using the official NodeSource repository script.
 RUN echo "--- Installing Node.js LTS ---" && \
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt-get install -y nodejs && \
     echo "✅ Node.js installed."
 
-# --- RUST (FOR TAURI, NATIVE DESKTOP APPS) ---
-# Install Rust using rustup
+# --- RUST (FOR TAURI) INSTALLATION ---
 RUN echo "--- Installing Rust and Cargo ---" && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
     echo "✅ Rust and Cargo installed."
 
-# Add Cargo's bin directory to PATH for subsequent layers
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# Ensure the Rust toolchain is up-to-date (still good practice for core Tauri compilation)
+# Ensure the Rust toolchain is up-to-date
 RUN echo "--- Updating Rust Toolchain ---" && \
     rustup update stable --no-self-update && \
     echo "✅ Rust Toolchain updated."
 
-# --- Tauri CLI Installation using NPM ---
-# This is preferred when you want to avoid direct Rust compilation issues for the CLI itself,
-# as npm might download pre-built binaries.
-# We will install it globally so the 'tauri' command is available directly.
-# Use version 1.5.0 to align with Cargo.toml, or 1.6.0 if 1.5.0 causes issues.
-RUN echo "--- Installing Tauri CLI (npm) ---" && \
+# --- TAURI CLI INSTALLATION ---
+RUN echo "--- Installing Tauri CLI ---" && \
     cargo install tauri-cli --version "^2.0.0" --locked && \
-    echo "✅ Tauri CLI installed globally via npm."
+    echo "✅ Tauri CLI installed globally via Cargo."
 
-# --- iOS / MACOS BUILD TOOLS (IMPORTANT LIMITATION) ---
-# iOS and macOS applications require Xcode and a macOS environment to build.
-# These tools CANNOT be installed or run directly on a Linux-based Docker image.
-# If you need to build for iOS/macOS, you will require a macOS build agent or a cloud CI/CD service
-# that provides macOS runners (e.g., Apple Silicon Macs for native builds).
+# --- iOS / MACOS BUILD TOOLS (INFORMATIONAL) ---
 RUN echo "--- iOS/macOS Build Tools: Cannot be installed on Linux Docker ---" && \
-    echo "🚨 Building for iOS/macOS requires Xcode on a macOS environment. This Docker image is Linux-based." && \
-    echo "Consider using a macOS-specific build agent or cloud CI/CD service for these platforms." && \
+    echo "🚨 Building for iOS/macOS requires Xcode on a macOS environment." && \
     echo "--- End iOS/macOS Build Tools Note ---"
 
-
-# --- APPLICATION TEMPLATE & CONFIGURATION ---
-# Create output directories (input-assets & config directories are handled by mounts at runtime)
+# --- APPLICATION SETUP ---
+# Create the output directory for build artifacts
 RUN mkdir -p /output
 
 # Copy the entire multi-platform template-app structure to /app
 COPY template-app /app
 
-#-----------------------Android
-# Adjust paths for Android-specific items within the new structure
-# Ensure gradlew is executable (it's part of template-app/android)
-RUN chmod +x /app/android/gradlew
-
-# Copy debug.keystore from its new location (template-app/android) to its new destination (/app/android)
-# This is needed for Android debug builds.
-COPY template-app/android/debug.keystore /app/android/debug.keystore
-RUN chmod 600 /app/android/debug.keystore # Set restrictive permissions
-
-# Copy the Python generator scripts and the default_config.yaml
+# Copy helper scripts and configuration
 COPY generator /generator
-
-# Copy the entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 
-# Set working directory to the overall multi-platform project root
+# --- FINAL CONFIGURATION ---
+# Set permissions for executable scripts and files
+RUN chmod +x /app/android/gradlew \
+    && chmod +x /entrypoint.sh \
+    && chmod 600 /app/android/debug.keystore
+
+# Set the final working directory
 WORKDIR /app
-# Make entrypoint executable and define it
-RUN chmod +x /entrypoint.sh
+
+# Define the container's entrypoint
 ENTRYPOINT ["/entrypoint.sh"]

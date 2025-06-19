@@ -3,6 +3,7 @@
 # --- Core Application Settings (Common to all platforms) ---
 app_name: "Default Docker WebView App"
 package_name: "com.devlouix.webviewapp"
+author: "Devlouix"
 url: "https://www.google.com"
 
 # --- Platform-Specific Configurations ---

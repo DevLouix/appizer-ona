@@ -26,6 +26,7 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
     build_config = config.get("build", {})
     webapp_config = config.get("webapp", {})
     icon_path_config = config.get("icon", "") # Windows icon path from config
+    author = config.get("author","Devlouix")
 
     # Derive Tauri-specific paths
     tauri_src_dir = os.path.join(windows_project_root, "src-tauri")
@@ -85,9 +86,33 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
     # --- 2. Configure tauri.conf.json ---
     print(f"  [Windows] Configuring {tauri_conf_path}...")
     try:
+        # The values to be relaced  in the tauri.conf.json
+        replacements = {
+            "APP_NAME": app_name,
+            "APP_VERSION": build_config.get("version", "0.1.0"),
+            "BUNDLE_IDENTIFIER": bundle_identifier,
+            "APP_TITLE": app_name, # Assuming APP_TITLE should be same as app_name
+            "WEBAPP_WIDTH": str(webapp_config.get("width", 800)), # Convert int to string "800"
+            "WEBAPP_HEIGHT": str(webapp_config.get("height", 600)), # Convert int to string "600"
+            "WEBAPP_RESIZABLE": str(webapp_config.get("resizable", True)).lower(), # Convert bool to "true"/"false"
+            "WEBAPP_DECORATIONS": str(not webapp_config.get("frameless", False)).lower(), # Convert bool to "true"/"false"
+            "WEBAPP_URL": url_for_tauri_conf
+        }
+        # Call the replaceplaceholder func to modify the template
+        replace_placeholders(tauri_conf_path,replacements)
+        
+        # --- DEBUGGING LINE START ---
+        print(f"\n  [Windows] DEBUG: Content of {tauri_conf_path} BEFORE json.load(f):")
+        with open(tauri_conf_path, "r", encoding="utf-8") as f_debug:
+            lines = f_debug.read().splitlines()
+            for i, line in enumerate(lines):
+                print(f"    {i+1}: {line}")
+        print("  [Windows] DEBUG: End of content.\n")
+        # --- DEBUGGING LINE END ---
+
         with open(tauri_conf_path, "r", encoding="utf-8") as f:
             tauri_config = json.load(f)
-
+            
         # Update package info
         tauri_config["package"]["productName"] = app_name
         tauri_config["package"]["version"] = build_config.get("version", "0.1.0")
@@ -164,15 +189,13 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
     # --- 3. Configure Cargo.toml (Rust project metadata) ---
     print(f"  [Windows] Configuring {cargo_toml_path}...")
     try:
-        with open(cargo_toml_path, "r", encoding="utf-8") as f:
-            cargo_content = f.read()
-
-        # Update package name and version
-        cargo_content = re.sub(r'^(name = )".*?"', r'\1"{}"'.format(app_name), cargo_content, flags=re.MULTILINE)
-        cargo_content = re.sub(r'^(version = )".*?"', r'\1"{}"'.format(build_config.get("version", "0.1.0")), cargo_content, flags=re.MULTILINE)
-
-        with open(cargo_toml_path, "w", encoding="utf-8") as f:
-            f.write(cargo_content)
+        replacements={
+            "PACKAGE_NAME" : app_name.strip().replace(" ", "_"), #using the appname for the rust package name
+            "AUTHOR": author
+        }
+        # Calling the replacement func
+        replace_placeholders(cargo_toml_path, replacements)
+            
         print(f"  [Windows] ✅ Updated {cargo_toml_path}.")
 
     except FileNotFoundError:

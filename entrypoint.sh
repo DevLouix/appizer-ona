@@ -130,6 +130,11 @@ else
     echo "🌐 App URL is external or not an Android build. Skipping general static asset copy to Android assets."
 fi
 
+# Buildtypes specifications
+# NEW: Read build_type from the merged config.yaml
+ANDROID_BUILD_TYPE=$(python3 -c "import sys, yaml; config=yaml.safe_load(sys.stdin); print(config.get('build_settings', {}).get('default_build_type', 'debug'))" < "$ACTIVE_CONFIG_FILE")
+echo "✅ Build type read from config.yaml: $ANDROID_BUILD_TYPE"
+
 
 # --- Run Python Generator (Pass platform and project roots) ---
 echo "🔧 Running Python generator to configure app for platform(s): $PLATFORM..."
@@ -150,12 +155,13 @@ python3 "${GENERATOR_DIR}/main.py" \
 
 # Android Build
 if [[ "$PLATFORM" == "all" || "$PLATFORM" == "android" ]]; then
-    echo "📦 Building Android APK..."
-    # Change to the Android project root
+    # Read Android-specific build type
+    ANDROID_BUILD_TYPE=$(python3 -c "import sys, yaml; config=yaml.safe_load(sys.stdin); print(config.get('platform_config', {}).get('android', {}).get('build', {}).get('build_type', 'debug'))" < "$ACTIVE_CONFIG_FILE")
+    echo "📦 Building Android APK (Type: $ANDROID_BUILD_TYPE)..."
     cd "${ANDROID_PROJECT_ROOT}" || { echo "❌ Failed to change directory to ${ANDROID_PROJECT_ROOT}. Current WD: $(pwd)"; exit 1; }
+    cat app/build.gradle
 
     echo "🔍 Verifying gradlew existence and permissions at $(pwd)/gradlew..."
-    # These checks are critical and *must* succeed, so we use '|| exit 1'
     if [ ! -f "./gradlew" ]; then
         echo "❌ gradlew file NOT FOUND at $(pwd)/gradlew. Please ensure template-app/android contains gradlew."
         ls -l . # List current directory contents
@@ -167,32 +173,32 @@ if [[ "$PLATFORM" == "all" || "$PLATFORM" == "android" ]]; then
     fi
     echo "✅ gradlew found and is executable."
 
-    echo "🚀 Starting actual Gradle build..."
-    ./gradlew assembleRelease
-    BUILD_STATUS=$? # Capture exit code of the last command (gradlew)
+    echo "🚀 Starting actual Gradle build (Build Type: $ANDROID_BUILD_TYPE)..."
+    ./gradlew assemble${ANDROID_BUILD_TYPE^} # Uses Android-specific build type
+    BUILD_STATUS=$?
 
-    if [ $BUILD_STATUS -ne 0 ]; then # If build failed
+    if [ $BUILD_STATUS -ne 0 ]; then
         echo "❌ Gradle build FAILED for Android."
         if [ "$SKIP_ERRORS" = "true" ]; then
             echo "⚠️  Skipping Android build errors as requested. Continuing with other platforms if applicable."
         else
             echo "🛑 Exiting due to Android build failure. Run with '-s' to skip errors."
-            exit 1 # Exit if not skipping errors
+            exit 1
         fi
     else
         echo "✅ Android Gradle build successful."
-        # --- Export APK ---
         echo "✅ Exporting Android APK..."
         mkdir -p "$OUTPUT_DIR" || { echo "❌ Failed to create output directory."; exit 1; }
-        RELEASE_APK=$(find "${ANDROID_PROJECT_ROOT}/app/build/outputs/apk/release" -name "*.apk" -print -quit)
 
-        if [ -f "$RELEASE_APK" ]; then
-            cp -fv "$RELEASE_APK" "$OUTPUT_DIR/app-release-android.apk" || { echo "❌ Failed to copy Android APK to output."; exit 1; }
-            echo "🎉 Done! Android APK available at /output/app-release-android.apk"
+        APK_PATH=$(find "${ANDROID_PROJECT_ROOT}/app/build/outputs/apk/$ANDROID_BUILD_TYPE" -name "*.apk" -print -quit)
+
+        if [ -f "$APK_PATH" ]; then
+            APK_FILENAME=$(basename "$APK_PATH")
+            cp -fv "$APK_PATH" "$OUTPUT_DIR/$APK_FILENAME" || { echo "❌ Failed to copy Android APK to output."; exit 1; }
+            echo "🎉 Done! Android APK available at /output/$APK_FILENAME"
         else
-            echo "❌ Failed to find Android release APK. Check Gradle build logs for errors."
-            ls -lR "${ANDROID_PROJECT_ROOT}/app/build/outputs/apk/release" # Debugging output
-            # This is a post-build artifact finding error, still exit if not skipping.
+            echo "❌ Failed to find Android APK. Check Gradle build logs for errors."
+            ls -lR "${ANDROID_PROJECT_ROOT}/app/build/outputs/apk/$ANDROID_BUILD_TYPE"
             if [ "$SKIP_ERRORS" = "true" ]; then
                 echo "⚠️  Skipping artifact export error for Android."
             else
@@ -206,30 +212,20 @@ fi
 
 # iOS Build (Placeholder)
 if [[ "$PLATFORM" == "all" || "$PLATFORM" == "ios" ]]; then
-    echo "--- iOS Build (Placeholder) ---"
+    # Read iOS-specific build type (placeholder)
+    IOS_BUILD_TYPE=$(python3 -c "import sys, yaml; config=yaml.safe_load(sys.stdin); print(config.get('platform_config', {}).get('ios', {}).get('build', {}).get('build_type', 'debug'))" < "$ACTIVE_CONFIG_FILE")
+    echo "--- iOS Build (Placeholder) (Type: $IOS_BUILD_TYPE) ---"
     echo "💡 As noted in the Dockerfile, iOS builds require Xcode on a macOS environment."
     echo "   This Linux Docker image cannot build for iOS."
-    # Add conditional error handling here if you implement iOS build later
-    # false # Uncomment to simulate failure
-    # BUILD_STATUS=$?
-    # if [ $BUILD_STATUS -ne 0 ]; then
-    #     echo "❌ iOS build FAILED (placeholder)."
-    #     if [ "$SKIP_ERRORS" = "true" ]; then echo "⚠️  Skipping iOS errors."; else exit 1; fi
-    # fi
     echo "--- iOS Build Placeholder Complete ---"
 fi
 
 # Linux Desktop Build (Placeholder)
 if [[ "$PLATFORM" == "all" || "$PLATFORM" == "linux" ]]; then
-    echo "--- Linux Desktop Build (Placeholder) ---"
+    # Read Linux-specific build type (placeholder)
+    LINUX_BUILD_TYPE=$(python3 -c "import sys, yaml; config=yaml.safe_load(sys.stdin); print(config.get('platform_config', {}).get('linux', {}).get('build', {}).get('build_type', 'debug'))" < "$ACTIVE_CONFIG_FILE")
+    echo "--- Linux Desktop Build (Placeholder) (Type: $LINUX_BUILD_TYPE) ---"
     echo "💡 Node.js and Rust are installed. You can add build commands here for frameworks like Electron or Tauri."
-    # Add conditional error handling here if you implement Linux build later
-    # false # Uncomment to simulate failure
-    # BUILD_STATUS=$?
-    # if [ $BUILD_STATUS -ne 0 ]; then
-    #     echo "❌ Linux build FAILED (placeholder)."
-    #     if [ "$SKIP_ERRORS" = "true" ]; then echo "⚠️  Skipping Linux errors."; else exit 1; fi
-    # fi
     echo "--- Linux Desktop Build Placeholder Complete ---"
 fi
 
@@ -269,7 +265,10 @@ if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
             echo "🎉 Done! Windows App available at /output/$APP_FILENAME"
         else
             echo "❌ Failed to find Windows App. Check Tauri build logs for errors."
-            ls -lR "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release/bundle"
+            cd "$WINDOWS_APP_PATH"
+            ls -d */
+
+            # ls -lR "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release"
             # This is a post-build artifact finding error, still exit if not skipping.
             if [ "$SKIP_ERRORS" = "true" ]; then
                 echo "⚠️  Skipping artifact export error for Windows."

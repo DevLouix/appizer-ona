@@ -28,24 +28,52 @@ def inject_into_android_files(config, android_project_root, container_multi_plat
     webapp_config = config.get("webapp", {})
     logo_path_config = config.get("logo", "")
     splash_config = config.get("splash", {})
+    signing_config = config.get("signing", {}) # NEW: Get signing config
 
     # --- Process custom Gradle build configurations ---
     custom_gradle_configs = build_config.get("gradle_custom_configs", {})
     gradle_config_lines = []
     for key, value in custom_gradle_configs.items():
         if isinstance(value, bool):
-            gradle_config_lines.append(f"        {key} = {str(value).lower()}")
+            gradle_config_lines.append(f"        {str(key)} = {str(value).lower()}")
         elif isinstance(value, (int, float)):
-            gradle_config_lines.append(f"        {key} = {value}")
+            gradle_config_lines.append(f"        {str(key)} = {value}")
         else:
             if isinstance(value, str) and not (value.startswith('"') and value.endswith('"')):
-                 gradle_config_lines.append(f"        {key} = \"{value}\"")
+                 gradle_config_lines.append(f"        {str(key)} = \"{value}\"")
             else:
-                 gradle_config_lines.append(f"        {key} = {value}")
+                 gradle_config_lines.append(f"        {str(key)} = {value}")
 
     custom_gradle_configs_string = "\n".join(gradle_config_lines)
     if custom_gradle_configs_string:
         custom_gradle_configs_string += "\n"
+
+
+    # --- Generate Android Signing Configs (Groovy code) ---
+    android_signing_config_block = ""
+    android_release_signing_config_ref = ""
+
+    keystore_path = signing_config.get("keystore_file_in_container")
+    keystore_pass = signing_config.get("keystore_password")
+    key_alias = signing_config.get("key_alias")
+    key_pass = signing_config.get("key_password")
+
+    # Only generate release signing config if all necessary details are provided
+    if all([keystore_path, keystore_pass, key_alias, key_pass]):
+        print("  [Modifier] Generating production Android signing configuration...")
+        android_signing_config_block = f"""
+        release {{
+            storeFile file(\"/{keystore_path}\")
+            storePassword \"{keystore_pass}\"
+            keyAlias \"{key_alias}\"
+            keyPassword \"{key_pass}\"
+        }}
+        """
+        android_release_signing_config_ref = "signingConfig signingConfigs.release"
+    else:
+        print("  [Modifier] ⚠️ Skipping production Android signing configuration: Incomplete details in config.yaml.")
+        print("  [Modifier]    Defaulting release builds to debug signing or no signing.")
+
 
 
     # --- Step 1: Prepare replacements for placeholders ---
@@ -81,6 +109,8 @@ def inject_into_android_files(config, android_project_root, container_multi_plat
 
         # CUSTOM GRADLE CONFIGS INJECTION
         "CUSTOM_GRADLE_BUILD_CONFIGS": custom_gradle_configs_string,
+        "INJECT_ANDROID_SIGNING_CONFIGS": android_signing_config_block, # NEW
+        "INJECT_RELEASE_SIGNING_CONFIG": android_release_signing_config_ref, # NEW
     }
 
     print("\n--- [Android Modifier] Starting Android File Modification ---")

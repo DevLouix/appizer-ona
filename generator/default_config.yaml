@@ -9,14 +9,14 @@ url: "https://www.google.com"
 # --- Platform-Specific Configurations ---
 platform_config:
   android:
-    build:
-      min_sdk_version: 21
-      compile_sdk_version: 34
-      target_sdk_version: 34
-      build_tools_version: "34.0.0"
-      version_code: 1
-      version_name: "1.0.0"
-      gradle_custom_configs: {} # Empty dict by default
+    logo: "" # No default logo
+
+    splash:
+      type: "color" # Default to color splash for simplicity
+      content: "" # No default image content
+      duration: 1500
+      background_color: "#FFFFFF"
+      text_color: "#000000"
 
     webapp:
       enable_javascript: true
@@ -28,13 +28,24 @@ platform_config:
       built_in_zoom_controls: false
       support_zoom: false
 
-    logo: "" # No default logo
-    splash:
-      type: "color" # Default to color splash for simplicity
-      content: "" # No default image content
-      duration: 1500
-      background_color: "#FFFFFF"
-      text_color: "#000000"
+    build:
+      build_type: "release" # Can be "debug" or "release" use release for production
+      min_sdk_version: 21
+      compile_sdk_version: 34
+      target_sdk_version: 34
+      build_tools_version: "34.0.0"
+      version_code: 1
+      version_name: "1.0.0"
+      gradle_custom_configs: {} # Empty dict by default
+
+    signing: # NEW SECTION FOR ANDROID SIGNING
+      # Path to the keystore file *inside the Docker container*.
+      # You will mount your host keystore to this path.
+      keystore_file_in_container: "/build/android/keystores/production.keystore"
+      keystore_password: "YOUR_KEYSTORE_PASSWORD" # VERY IMPORTANT: DO NOT COMMIT REAL PASSWORDS!
+      key_alias: "your_key_alias"
+      key_password: "YOUR_KEYSTORE_PASSWORD" # VERY IMPORTANT: DO NOT COMMIT REAL PASSWORDS!`
+
 
   ios:
     build:

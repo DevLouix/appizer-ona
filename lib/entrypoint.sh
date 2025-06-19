@@ -234,10 +234,7 @@ if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
     echo "--- Windows Desktop Build (Tauri) ---"
     cd "${WINDOWS_PROJECT_ROOT}" || { echo "❌ Failed to change directory to ${WINDOWS_PROJECT_ROOT}."; exit 1; }
     echo "🚀 Starting Tauri build for Windows..."
-    # find .
-    cargo tauri info
-
-    cargo tauri build
+    cargo tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc
 
     BUILD_STATUS=$?
 
@@ -256,7 +253,9 @@ if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
 
         # Find the generated installer/executable
         # Use a more robust find to get any MSI or EXE
-        WINDOWS_APP_PATH=$(find "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release" -maxdepth 3 -type f -regex ".*\\.\\(msi\\|exe\\)" -print -quit)
+        # WINDOWS_APP_PATH=$(find "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release" -maxdepth 3 -type f -regex ".*\\.\\(msi\\|exe\\)" -print -quit)
+        WINDOWS_APP_PATH=$(find "${WINDOWS_PROJECT_ROOT}/target/x86_64-pc-windows-msvc/release/bundle/nsis/" -maxdepth 3 -type f \( -iname "*.msi" -o -iname "*.exe" \) -print -quit)
+
 
         if [ -f "$WINDOWS_APP_PATH" ]; then
             # Extract just the filename for copying
@@ -265,10 +264,8 @@ if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
             echo "🎉 Done! Windows App available at /output/$APP_FILENAME"
         else
             echo "❌ Failed to find Windows App. Check Tauri build logs for errors."
-            cd "$WINDOWS_APP_PATH"
-            ls -d */
+            ls "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release"
 
-            # ls -lR "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release"
             # This is a post-build artifact finding error, still exit if not skipping.
             if [ "$SKIP_ERRORS" = "true" ]; then
                 echo "⚠️  Skipping artifact export error for Windows."

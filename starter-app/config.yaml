@@ -2,7 +2,7 @@
 app_name: "DL-Appic"
 package_name: "com.devlouix.webviewapp"
 author: "Devlouix"
-url: "https://www.google.com"
+url: "https://www.google.com" #Uncommnt and update url to render a url
 
 # --- Platform-Specific Configurations ---
 platform_config:

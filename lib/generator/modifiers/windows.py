@@ -21,7 +21,7 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
     app_name = config.get("app_name", "Default Windows App")
     # For Tauri, 'app_id' is preferred over 'package_name' for bundle identifier
     bundle_identifier = config.get("build", {}).get("app_id", config.get("package_name", "com.default.windowsapp"))
-    base_url = config.get("url", "https://www.google.com") # Get the base URL
+    base_url = config.get("url") # Get the base URL
 
     build_config = config.get("build", {})
     webapp_config = config.get("webapp", {})

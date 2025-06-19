@@ -36,6 +36,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgtk-3-dev \
     libayatana-appindicator3-dev \
     librsvg2-dev \
+    nsis \
+    lld \
+    llvm \
     # Other native module dependencies
     libgl1 \
     libjpeg-dev \
@@ -91,15 +94,23 @@ RUN echo "--- Installing Rust and Cargo ---" && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
     echo "✅ Rust and Cargo installed."
 
+RUN echo "--- Installing required Rust packages ---" && \
+    rustup target add x86_64-pc-windows-msvc \
+    echo "✅ Installed x86_64-pc-windows-msvc."
+
 # Ensure the Rust toolchain is up-to-date
 RUN echo "--- Updating Rust Toolchain ---" && \
     rustup update stable --no-self-update && \
     echo "✅ Rust Toolchain updated."
 
-# --- TAURI CLI INSTALLATION ---
+# --- TAURI INSTALLATIONS ---
 RUN echo "--- Installing Tauri CLI ---" && \
     cargo install tauri-cli --version "^2.0.0" --locked && \
     echo "✅ Tauri CLI installed globally via Cargo."
+    
+RUN echo "--- Installing Tauri XWIN ---" && \
+    cargo install --locked cargo-xwin \
+    echo "✅ Tauri XWIN installed globally via Cargo."
 
 # --- iOS / MACOS BUILD TOOLS (INFORMATIONAL) ---
 RUN echo "--- iOS/macOS Build Tools: Cannot be installed on Linux Docker ---" && \

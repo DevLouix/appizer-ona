@@ -237,11 +237,12 @@ fi
 if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
     echo "--- Windows Desktop Build (Tauri) ---"
     cd "${WINDOWS_PROJECT_ROOT}" || { echo "❌ Failed to change directory to ${WINDOWS_PROJECT_ROOT}."; exit 1; }
-
     echo "🚀 Starting Tauri build for Windows..."
-    ls
+    # find .
+    cargo tauri info
 
     cargo tauri build
+
     BUILD_STATUS=$?
 
     if [ $BUILD_STATUS -ne 0 ]; then
@@ -259,7 +260,7 @@ if [[ "$PLATFORM" == "all" || "$PLATFORM" == "windows" ]]; then
 
         # Find the generated installer/executable
         # Use a more robust find to get any MSI or EXE
-        WINDOWS_APP_PATH=$(find "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release/bundle" -maxdepth 3 -type f -regex ".*\\.\\(msi\\|exe\\)" -print -quit)
+        WINDOWS_APP_PATH=$(find "${WINDOWS_PROJECT_ROOT}/src-tauri/target/release" -maxdepth 3 -type f -regex ".*\\.\\(msi\\|exe\\)" -print -quit)
 
         if [ -f "$WINDOWS_APP_PATH" ]; then
             # Extract just the filename for copying

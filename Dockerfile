@@ -84,7 +84,7 @@ RUN echo "--- Accepting Android SDK Licenses and Installing Components ---" && \
 RUN echo "--- Installing Node.js LTS ---" && \
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt-get install -y nodejs && \
-    echo "✅ Node.js installed."
+    echo "✅ Node.js installed!."
 
 # --- RUST (FOR TAURI) INSTALLATION ---
 RUN echo "--- Installing Rust and Cargo ---" && \

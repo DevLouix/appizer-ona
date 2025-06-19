@@ -114,19 +114,19 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
             tauri_config = json.load(f)
             
         # Update package info
-        tauri_config["package"]["productName"] = app_name
-        tauri_config["package"]["version"] = build_config.get("version", "0.1.0")
+        tauri_config["productName"] = app_name
+        tauri_config["version"] = build_config.get("version", "0.1.0")
 
         # Update bundle identifier
-        tauri_config["tauri"]["bundle"]["identifier"] = bundle_identifier
+        tauri_config["identifier"] = bundle_identifier
         
         # Update bundle targets for Windows
         tauri_target = build_config.get("output_format", "msi")
         if tauri_target in ["msi", "exe", "portable"]:
-             tauri_config["tauri"]["bundle"]["targets"] = [tauri_target]
+             tauri_config["bundle"]["targets"] = [tauri_target]
         else:
             print(f"  [Windows] Warning: Unknown Tauri output_format '{tauri_target}'. Defaulting to 'msi'.")
-            tauri_config["tauri"]["bundle"]["targets"] = ["msi"]
+            tauri_config["bundle"]["targets"] = ["msi"]
 
         # Handle icon path and copying
         # Tauri prefers PNG/SVG and generates other formats from it
@@ -139,20 +139,20 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
                 shutil.copyfile(source_icon_path, final_icon_path_in_tauri)
                 print(f"  [Windows] ✅ Copied icon from {source_icon_path} to {final_icon_path_in_tauri}")
 
-                tauri_config["tauri"]["bundle"]["icon"] = [
+                tauri_config["bundle"]["icon"] = [
                     "icons/icon.png" # Path relative to src-tauri
                 ]
             else:
                 print(f"  [Windows] ⚠️ Icon file not found at {source_icon_path}. Using default Tauri placeholder icon.")
-                tauri_config["tauri"]["bundle"]["icon"] = ["icons/placeholder.png"] # Fallback to template's placeholder
+                tauri_config["bundle"]["icon"] = ["icons/placeholder.png"] # Fallback to template's placeholder
         else:
              print("  [Windows] ℹ️ No icon specified in config. Using default Tauri placeholder icon.")
-             tauri_config["tauri"]["bundle"]["icon"] = ["icons/placeholder.png"]
+             tauri_config["bundle"]["icon"] = ["icons/placeholder.png"]
 
 
         # Update window properties (first window in the array)
-        if tauri_config["tauri"]["windows"]:
-            window_config = tauri_config["tauri"]["windows"][0]
+        if tauri_config["app"]["windows"]:
+            window_config = tauri_config["app"]["windows"][0]
             window_config["title"] = app_name
             window_config["width"] = webapp_config.get("width", 800)
             window_config["height"] = webapp_config.get("height", 600)

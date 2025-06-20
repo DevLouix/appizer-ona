@@ -29,105 +29,58 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
     author = config.get("author","Devlouix")
 
     # Derive Tauri-specific paths
-    tauri_src_dir = os.path.join(windows_project_root, "src-tauri")
-    tauri_conf_path = os.path.join(tauri_src_dir, "tauri.conf.json")
-    cargo_toml_path = os.path.join(tauri_src_dir, "Cargo.toml")
-    tauri_icons_dir = os.path.join(tauri_src_dir, "icons")
-    tauri_dist_dir = os.path.join(windows_project_root, "dist") # Tauri's default web content output/input
+    wails_src_dir = os.path.join(windows_project_root, "wails_app")
+    wail_json_file = os.path.join(wails_src_dir, "wails.json")
+    wails_main_go_file = os.path.join(wails_src_dir, "main.go")
+    tauri_icons_dir = os.path.join(wails_src_dir, "icons")
+    wails_frontend_dir = os.path.join(windows_project_root, "frontend") # Tauri's default web content output/input
 
     # --- 1. Handle Web Content (Local Assets vs. External URL) ---
-    # Determine the URL Tauri will use and if local assets need copying.
-    url_for_tauri_conf = base_url
-    if base_url.startswith("file:///"):
-        print(f"  [Windows] Local URL detected: {base_url}. Copying web assets from {webapp_assets_dir} to {tauri_dist_dir}...")
+    if webapp_assets_dir:
+        print(f"  [Windows] Local web assets detected. Copying web assets from {webapp_assets_dir} to {wails_frontend_dir}...")
 
-        os.makedirs(tauri_dist_dir, exist_ok=True)
+        # Create the dist dir thi is the production webapp dir
+        os.makedirs(wails_frontend_dir, exist_ok=True)
 
         # Clear existing dist content before copying new assets
-        print(f"  [Windows] Cleaning existing content in {tauri_dist_dir}...")
-        if os.path.exists(tauri_dist_dir):
-            for item in os.listdir(tauri_dist_dir):
-                item_path = os.path.join(tauri_dist_dir, item)
+        print(f"  [Windows] Cleaning existing content in {wails_frontend_dir}...")
+        if os.path.exists(wails_frontend_dir):
+            for item in os.listdir(wails_frontend_dir):
+                item_path = os.path.join(wails_frontend_dir, item)
                 if os.path.isfile(item_path):
                     os.remove(item_path)
                 elif os.path.isdir(item_path):
                     shutil.rmtree(item_path)
-        print(f"  [Windows] Cleaned {tauri_dist_dir}.")
+        print(f"  [Windows] Cleaned {wails_frontend_dir}.")
 
         if os.path.exists(webapp_assets_dir) and os.path.isdir(webapp_assets_dir) and os.listdir(webapp_assets_dir):
-            # Copy all contents of webapp_assets_dir into tauri_dist_dir
-            shutil.copytree(webapp_assets_dir, tauri_dist_dir, dirs_exist_ok=True)
-            print(f"  [Windows] ✅ Web assets copied from {webapp_assets_dir} to {tauri_dist_dir}.")
-            
-            # For local files, Tauri's `url` property expects a path relative to its `distDir`.
-            # If the base_url was "file:///some_path/index.html", we need "some_path/index.html".
-            # If it was "file:///some_path/", we'd typically default to "some_path/index.html".
-            # If it was just "file:///", default to "index.html".
-            
-            # Strip common file prefixes to get the intended relative path
-            relative_path_from_url = base_url.replace("file:///", "")
-            # Assume it might contain '/android_asset/' from previous cross-platform thinking
-            relative_path_from_url = relative_path_from_url.replace("android_asset/", "")
-
-            if not relative_path_from_url:
-                url_for_tauri_conf = "index.html" # Default to index.html if only base URL provided
-            else:
-                url_for_tauri_conf = relative_path_from_url
-            print(f"  [Windows] Tauri URL set to local asset: '{url_for_tauri_conf}' (relative to distDir).")
+            # Copy all contents of webapp_assets_dir into wails_frontend_dir
+            shutil.copytree(webapp_assets_dir, wails_frontend_dir, dirs_exist_ok=True)
+            print(f"  [Windows] ✅ Web assets copied from {webapp_assets_dir} to {wails_frontend_dir}.")
         else:
             print(f"  [Windows] ⚠️ No local web assets found in {webapp_assets_dir}. Tauri might show a blank page.")
             url_for_tauri_conf = "" # Set to empty, Tauri will likely show an error or blank page.
     else:
         # External URL, Tauri will load it directly. No local asset copying needed.
-        url_for_tauri_conf = base_url
-        print(f"  [Windows] External URL detected: '{url_for_tauri_conf}'. Skipping local asset copying.")
+        print(f"  [Windows] External URL detected: '{base_url}'. Skipping local asset copying.")
 
 
-    # --- 2. Configure tauri.conf.json ---
-    print(f"  [Windows] Configuring {tauri_conf_path}...")
+    # --- 2. Configure wails.json and Main.go ---
+    print(f"  [Windows] Configuring Wails Project File For Build...")
     try:
         # The values to be relaced  in the tauri.conf.json
         replacements = {
             "APP_NAME": app_name,
-            "APP_VERSION": build_config.get("version", "0.1.0"),
-            "BUNDLE_IDENTIFIER": bundle_identifier,
-            "APP_TITLE": app_name, # Assuming APP_TITLE should be same as app_name
-            "WEBAPP_WIDTH": str(webapp_config.get("width", 800)), # Convert int to string "800"
-            "WEBAPP_HEIGHT": str(webapp_config.get("height", 600)), # Convert int to string "600"
-            "WEBAPP_RESIZABLE": str(webapp_config.get("resizable", True)).lower(), # Convert bool to "true"/"false"
-            "WEBAPP_DECORATIONS": str(not webapp_config.get("frameless", False)).lower(), # Convert bool to "true"/"false"
-            "WEBAPP_URL": url_for_tauri_conf
+            "URL": base_url
         }
-        # Call the replaceplaceholder func to modify the template
-        replace_placeholders(tauri_conf_path,replacements)
+        # Call the replaceplaceholder func to modify the neededfiles template
+        replace_placeholders(wail_json_file,replacements)
+        replace_placeholders(wails_main_go_file,replacements)
         
-        # --- DEBUGGING LINE START ---
-        print(f"\n  [Windows] DEBUG: Content of {tauri_conf_path} BEFORE json.load(f):")
-        with open(tauri_conf_path, "r", encoding="utf-8") as f_debug:
-            lines = f_debug.read().splitlines()
-            for i, line in enumerate(lines):
-                print(f"    {i+1}: {line}")
-        print("  [Windows] DEBUG: End of content.\n")
-        # --- DEBUGGING LINE END ---
-
+        # Opening the file initially as a text doc for modifications
         with open(tauri_conf_path, "r", encoding="utf-8") as f:
             tauri_config = json.load(f)
             
-        # Update package info
-        tauri_config["productName"] = app_name
-        tauri_config["version"] = build_config.get("version", "0.1.0")
-
-        # Update bundle identifier
-        tauri_config["identifier"] = bundle_identifier
-        
-        # Update bundle targets for Windows
-        tauri_target = build_config.get("output_format", "msi")
-        if tauri_target in ["msi", "exe", "portable"]:
-             tauri_config["bundle"]["targets"] = [tauri_target]
-        else:
-            print(f"  [Windows] Warning: Unknown Tauri output_format '{tauri_target}'. Defaulting to 'msi'.")
-            tauri_config["bundle"]["targets"] = ["msi"]
-
         # Handle icon path and copying
         # Tauri prefers PNG/SVG and generates other formats from it
         if icon_path_config:
@@ -186,21 +139,5 @@ def inject_into_windows_files(config, windows_project_root, container_multi_plat
     except Exception as e:
         print(f"  [Windows] ❌ Unexpected error configuring tauri.conf.json: {e}")
 
-    # --- 3. Configure Cargo.toml (Rust project metadata) ---
-    print(f"  [Windows] Configuring {cargo_toml_path}...")
-    try:
-        replacements={
-            "PACKAGE_NAME" : app_name.strip().replace(" ", "_"), #using the appname for the rust package name
-            "AUTHOR": author
-        }
-        # Calling the replacement func
-        replace_placeholders(cargo_toml_path, replacements)
-            
-        print(f"  [Windows] ✅ Updated {cargo_toml_path}.")
-
-    except FileNotFoundError:
-        print(f"  [Windows] ❌ Error: Cargo.toml not found at {cargo_toml_path}.")
-    except Exception as e:
-        print(f"  [Windows] ❌ Unexpected error configuring Cargo.toml: {e}")
-
+    
     print("--- [Windows Modifier] Windows (Tauri) File Modification Complete ---")

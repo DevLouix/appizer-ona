@@ -2,7 +2,7 @@
 set -e
 
 # Define container image name
-IMAGE_NAME="webview-builder"
+IMAGE_NAME="appizer"
 
 # Define local directories to mount
 # Assume 'output' and 'webapp' are sibling directories to this script

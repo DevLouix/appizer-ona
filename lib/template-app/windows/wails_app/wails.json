@@ -1,0 +1,8 @@
+{
+  "name": "{{APP_NAME}}",
+  "frontend": {
+    "dir": "frontend",
+    "install": "",
+    "build": ""
+  }
+}

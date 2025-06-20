@@ -13,42 +13,29 @@ LABEL description="Multi-Platform App Builder based on Ubuntu 22.04 with Java, A
 # Install all essential tools, including OpenJDK 17, from the official Ubuntu repos.
 # This single layer is more efficient and ensures all dependencies are met.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Java Development Kit
     openjdk-17-jdk-headless \
-    # Essential build tools
     build-essential \
     pkg-config \
-    # Source control and networking
     git \
     curl \
     wget \
-    # Archive tools
     zip \
     unzip \
     xz-utils \
-    # Python
     python3 \
     python3-pip \
-    # Tauri (GTK/WebKit) dependencies for Linux builds/cross-compilation
-    libssl-dev \
-    libglib2.0-dev \
-    libwebkit2gtk-4.1-dev \
-    libgtk-3-dev \
     libayatana-appindicator3-dev \
+    libgirepository1.0-dev \
     librsvg2-dev \
-    nsis \
-    lld \
-    llvm \
-    # Other native module dependencies
-    libgl1 \
-    libjpeg-dev \
-    libfreetype6-dev \
     liblzma-dev \
     libudev-dev \
     ca-certificates \
+    xz-utils \
     clang \
     libicu-dev \
-    # Clean up APT cache to reduce final image size
+    g++-mingw-w64-x86-64 \
+    webkit2gtk-4.0 \
+    gcc-multilib \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -89,28 +76,17 @@ RUN echo "--- Installing Node.js LTS ---" && \
     apt-get install -y nodejs && \
     echo "✅ Node.js installed!."
 
-# --- RUST (FOR TAURI) INSTALLATION ---
-RUN echo "--- Installing Rust and Cargo ---" && \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
-    echo "✅ Rust and Cargo installed."
-
-RUN echo "--- Installing required Rust packages ---" && \
-    rustup target add x86_64-pc-windows-msvc \
-    echo "✅ Installed x86_64-pc-windows-msvc."
-
-# Ensure the Rust toolchain is up-to-date
-RUN echo "--- Updating Rust Toolchain ---" && \
-    rustup update stable --no-self-update && \
-    echo "✅ Rust Toolchain updated."
-
-# --- TAURI INSTALLATIONS ---
-RUN echo "--- Installing Tauri CLI ---" && \
-    cargo install tauri-cli --version "^2.0.0" --locked && \
-    echo "✅ Tauri CLI installed globally via Cargo."
-    
-RUN echo "--- Installing Tauri XWIN ---" && \
-    cargo install --locked cargo-xwin \
-    echo "✅ Tauri XWIN installed globally via Cargo."
+# ---   GO INSTALLATION ---
+ENV GO_VERSION=1.22.4
+RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm go${GO_VERSION}.linux-amd64.tar.gz
+# Add Go to PATH
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH=/go
+ENV PATH=$GOPATH/bin:$PATH
+# Install Wails CLI
+RUN go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
 # --- iOS / MACOS BUILD TOOLS (INFORMATIONAL) ---
 RUN echo "--- iOS/macOS Build Tools: Cannot be installed on Linux Docker ---" && \

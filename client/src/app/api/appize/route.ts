@@ -3,7 +3,7 @@ import { AppBuildOrchestrator } from '@/lib/codespace-automation';
 
 export async function POST(request: NextRequest) {
   try {
-    const { config, buildParams } = await request.json();
+    const { config, buildParams, fileManifest, hasLocalAssets } = await request.json();
     
     if (!config) {
       return NextResponse.json(
@@ -11,6 +11,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Generate unique build ID
+    const buildId = `build_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Get environment variables
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -24,23 +27,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the orchestrator for the build process
-    const orchestrator = new AppBuildOrchestrator(GITHUB_TOKEN, CODESPACE_REPO);
-    
-    const result = await orchestrator.buildApp({
+    // Create build configuration with file handling
+    const buildConfig = {
       platforms: buildParams?.platforms || ['android'],
       dockerImage: buildParams?.dockerImage || DOCKER_IMAGE,
       yamlConfig: config,
       buildType: buildParams?.buildType || 'release',
       skipErrors: buildParams?.skipErrors || false,
-    });
+      fileManifest: fileManifest || {},
+      hasLocalAssets: hasLocalAssets || false,
+      buildId,
+    };
+
+    // Use the orchestrator for the build process
+    const orchestrator = new AppBuildOrchestrator(GITHUB_TOKEN, CODESPACE_REPO);
+    
+    const result = await orchestrator.buildApp(buildConfig);
     
     return NextResponse.json({
       message: 'Build process completed',
+      buildId,
       status: result.status,
       progress: result.progress,
       artifacts: result.artifacts,
-      logs: result.logs
+      logs: result.logs,
+      hasLocalAssets,
+      fileManifest
     });
 
   } catch (error) {

@@ -17,7 +17,14 @@ export const exampleSchema: FieldSchema[] = [
     label: "URL",
     type: "string",
     default: "https://www.google.com",
-    hint: "Uncomment and update url to render a url",
+    hint: "Web URL to load, or leave empty to use local web assets",
+  },
+  {
+    key: "web_assets",
+    label: "Web Assets",
+    type: "files",
+    accept: ".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.ico,.json,.xml,.txt",
+    hint: "Upload your web application files (HTML, CSS, JS, images, etc.). Only needed if URL is not specified.",
   },
   {
     key: "platform_config",
@@ -29,7 +36,13 @@ export const exampleSchema: FieldSchema[] = [
         label: "Android",
         type: "object",
         fields: [
-          { key: "logo", label: "Logo Path", type: "string", default: "" },
+          { 
+            key: "logo", 
+            label: "App Logo/Icon", 
+            type: "file", 
+            accept: ".png,.jpg,.jpeg,.svg",
+            hint: "Upload app icon/logo image. Will be resized for different screen densities."
+          },
           {
             key: "splash",
             label: "Splash",
@@ -44,9 +57,10 @@ export const exampleSchema: FieldSchema[] = [
               },
               {
                 key: "content",
-                label: "Content (image) or color text",
-                type: "string",
-                default: "",
+                label: "Splash Image",
+                type: "file",
+                accept: ".png,.jpg,.jpeg",
+                hint: "Upload splash screen image (optional)",
               },
               {
                 key: "duration",
@@ -139,10 +153,11 @@ export const exampleSchema: FieldSchema[] = [
         type: "object",
         fields: [
           {
-            key: "keystore_file_in_container",
-            label: "Keystore Path",
-            type: "string",
-            default: "/build/android/keystores/production.keystore",
+            key: "keystore_file",
+            label: "Keystore File",
+            type: "file",
+            accept: ".keystore,.jks,.p12",
+            hint: "Upload Android keystore file for app signing",
           },
           {
             key: "keystore_password",
@@ -210,7 +225,13 @@ export const exampleSchema: FieldSchema[] = [
           },
         ],
       },
-      { key: "logo", label: "Logo Path", type: "string", default: "" },
+      { 
+        key: "logo", 
+        label: "App Icon", 
+        type: "file", 
+        accept: ".png,.jpg,.jpeg,.icns",
+        hint: "Upload app icon for iOS"
+      },
       {
         key: "splash",
         label: "Splash",
@@ -223,7 +244,13 @@ export const exampleSchema: FieldSchema[] = [
             options: ["color", "image"],
             default: "color",
           },
-          { key: "content", label: "Content", type: "string", default: "" },
+          { 
+            key: "content", 
+            label: "Splash Image", 
+            type: "file", 
+            accept: ".png,.jpg,.jpeg",
+            hint: "Upload splash screen image for iOS"
+          },
           {
             key: "duration",
             label: "Duration (ms)",
@@ -284,6 +311,13 @@ export const exampleSchema: FieldSchema[] = [
           },
         ],
       },
+      { 
+        key: "icon", 
+        label: "App Icon", 
+        type: "file", 
+        accept: ".png,.jpg,.jpeg,.ico",
+        hint: "Upload app icon for Linux desktop"
+      },
     ],
   }, // Windows (trimmed)
   {
@@ -330,6 +364,13 @@ export const exampleSchema: FieldSchema[] = [
           },
         ],
       },
+      { 
+        key: "icon", 
+        label: "App Icon", 
+        type: "file", 
+        accept: ".png,.jpg,.jpeg,.ico",
+        hint: "Upload app icon for Windows desktop"
+      },
     ],
   }, // macOS (trimmed)
   {
@@ -375,6 +416,13 @@ export const exampleSchema: FieldSchema[] = [
             default: "dmg",
           },
         ],
+      },
+      { 
+        key: "icon", 
+        label: "App Icon", 
+        type: "file", 
+        accept: ".png,.jpg,.jpeg,.icns",
+        hint: "Upload app icon for macOS"
       },
     ],
   },

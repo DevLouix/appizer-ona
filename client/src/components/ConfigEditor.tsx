@@ -16,11 +16,13 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { useState, useRef } from "react";
 import SectionRenderer from "./SectionRenderer";
-import { generateYAML } from "@/funcs/yaml_geneator";
+import { generateYAML, generateBuildConfig } from "@/funcs/yaml_geneator";
 import { exampleSchema } from "@/configs/defaultEditor";
 import BuildParametersDialog, { BuildParameters } from "./BuildParametersDialog";
 import BuildProgressModal from "./BuildProgressModal";
+import FileUploadStatus from "./FileUploadStatus";
 import { AppBuildOrchestrator, CodespaceAutomation } from "@/lib/codespace-automation";
+import { FileManager, ManagedFile } from "@/lib/file-manager";
 import * as yaml from "js-yaml";
 
 // ---------- Main component ----------
@@ -52,7 +54,24 @@ export default function ConfigEditor() {
 
   // Merge incoming partial changes (from setNested outputs)
   const applyPartial = (partial: any) => {
-    // Shallow merge at top-level keys where needed. We perform a deep merge.
+    // Handle file uploads specially
+    const processValue = (value: any, key: string): any => {
+      if (value instanceof File) {
+        // Single file upload
+        const category = getCategoryFromKey(key);
+        const fileManager = FileManager.getInstance();
+        const fileId = fileManager.addFile(value, category);
+        return fileId;
+      } else if (Array.isArray(value) && value.length > 0 && value[0] instanceof File) {
+        // Multiple file upload
+        const category = getCategoryFromKey(key);
+        const fileManager = FileManager.getInstance();
+        return value.map(file => fileManager.addFile(file, category));
+      }
+      return value;
+    };
+
+    // Deep merge with file handling
     const deepMerge = (target: any, src: any): any => {
       if (!src) return target;
       const out: any = Array.isArray(target)
@@ -62,11 +81,12 @@ export default function ConfigEditor() {
         if (
           typeof src[k] === "object" &&
           src[k] !== null &&
-          !Array.isArray(src[k])
+          !Array.isArray(src[k]) &&
+          !(src[k] instanceof File)
         ) {
           out[k] = deepMerge(target?.[k] ?? {}, src[k]);
         } else {
-          out[k] = src[k];
+          out[k] = processValue(src[k], k);
         }
       }
       return out;
@@ -75,9 +95,34 @@ export default function ConfigEditor() {
     setFormData((prev: any) => deepMerge(prev, partial));
   };
 
+  // Helper function to determine file category from form key
+  const getCategoryFromKey = (key: string): ManagedFile['category'] => {
+    try {
+      if (key === 'web_assets') return 'web_assets';
+      if (key.includes('android')) {
+        if (key.includes('logo')) return 'android_logo';
+        if (key.includes('splash') || key.includes('content')) return 'android_splash';
+        if (key.includes('keystore')) return 'android_keystore';
+      }
+      if (key.includes('ios') && key.includes('logo')) return 'ios_icon';
+      if (key.includes('windows') && key.includes('icon')) return 'windows_icon';
+      if (key.includes('linux') && key.includes('icon')) return 'linux_icon';
+      if (key.includes('macos') && key.includes('icon')) return 'macos_icon';
+      return 'web_assets'; // default
+    } catch (error) {
+      console.warn('Error determining file category for key:', key, error);
+      return 'web_assets';
+    }
+  };
+
   const handleGenerate = () => {
-    const yaml = generateYAML(formData);
-    setYamlPreview(yaml);
+    const buildConfig = generateBuildConfig(formData);
+    setYamlPreview(buildConfig.yaml);
+    
+    // Show info about local assets if applicable
+    if (buildConfig.hasLocalAssets) {
+      setAppizeStatus("Local web assets detected. URL will be set to use local files.");
+    }
   };
 
   const handleDownload = (format: "yaml" | "json") => {
@@ -131,6 +176,10 @@ export default function ConfigEditor() {
           return;
         }
 
+        // Clear existing file manager data when loading new config
+        const fileManager = FileManager.getInstance();
+        fileManager.clear();
+
         // Merge the loaded data with the current form data structure
         const mergedData = { ...buildDefault(exampleSchema), ...parsedData };
         setFormData(mergedData);
@@ -159,7 +208,7 @@ export default function ConfigEditor() {
     setBuildStatus(null);
 
     try {
-      const yamlConfig = generateYAML(formData);
+      const buildConfig = generateBuildConfig(formData);
       
       const orchestrator = new AppBuildOrchestrator(
         params.githubToken,
@@ -170,9 +219,11 @@ export default function ConfigEditor() {
       const result = await orchestrator.buildApp({
         platforms: params.platforms,
         dockerImage: params.dockerImage,
-        yamlConfig,
+        yamlConfig: buildConfig.yaml,
         buildType: params.buildType,
         skipErrors: params.skipErrors,
+        fileManifest: buildConfig.fileManifest,
+        hasLocalAssets: buildConfig.hasLocalAssets,
       });
 
       setBuildStatus(result);
@@ -312,6 +363,14 @@ export default function ConfigEditor() {
           buildStatus={buildStatus}
           onRetry={handleRetryBuild}
           onDownload={handleDownloadArtifact}
+        />
+
+        <FileUploadStatus
+          onFileRemove={() => {
+            // Regenerate preview when files are removed
+            const buildConfig = generateBuildConfig(formData);
+            setYamlPreview(buildConfig.yaml);
+          }}
         />
       </Paper>
 

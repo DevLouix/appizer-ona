@@ -6,7 +6,9 @@ export type FieldType =
 | "color"
 | "select"
 | "object"
-| "textarea";
+| "textarea"
+| "file"
+| "files";
 
 
 export interface FieldSchema {
@@ -17,4 +19,6 @@ default?: any;
 hint?: string;
 options?: string[]; // for select
 fields?: FieldSchema[]; // when type === 'object'
+accept?: string; // for file inputs (e.g., ".png,.jpg,.jpeg")
+multiple?: boolean; // for file inputs
 }

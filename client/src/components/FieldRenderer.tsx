@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SectionRenderer from "./SectionRenderer";
+import FileUploadField from "./FileUploadField";
 
 // Utility: set nested value immutably
 function setNested(obj: any, path: string[], value: any): any {
@@ -155,6 +156,19 @@ export function FieldRenderer({
             ))}
           </Select>
         </FormControl>
+      );
+
+    case "file":
+    case "files":
+      return (
+        <FileUploadField
+          label={field.label ?? field.key}
+          value={value}
+          onChange={handlePrimitiveChange}
+          accept={field.accept}
+          multiple={field.type === "files" || field.multiple}
+          hint={field.hint}
+        />
       );
 
     default:

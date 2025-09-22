@@ -18,6 +18,9 @@ import { useState, useRef } from "react";
 import SectionRenderer from "./SectionRenderer";
 import { generateYAML } from "@/funcs/yaml_geneator";
 import { exampleSchema } from "@/configs/defaultEditor";
+import BuildParametersDialog, { BuildParameters } from "./BuildParametersDialog";
+import BuildProgressModal from "./BuildProgressModal";
+import { AppBuildOrchestrator, CodespaceAutomation } from "@/lib/codespace-automation";
 import * as yaml from "js-yaml";
 
 // ---------- Main component ----------
@@ -42,6 +45,9 @@ export default function ConfigEditor() {
   const [yamlPreview, setYamlPreview] = useState<string>("");
   const [isAppizing, setIsAppizing] = useState<boolean>(false);
   const [appizeStatus, setAppizeStatus] = useState<string>("");
+  const [showBuildDialog, setShowBuildDialog] = useState<boolean>(false);
+  const [showProgressModal, setShowProgressModal] = useState<boolean>(false);
+  const [buildStatus, setBuildStatus] = useState<CodespaceAutomation | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Merge incoming partial changes (from setNested outputs)
@@ -142,43 +148,83 @@ export default function ConfigEditor() {
     fileInputRef.current?.click();
   };
 
-  const handleAppize = async () => {
+  const handleAppize = () => {
+    setShowBuildDialog(true);
+  };
+
+  const handleBuildConfirm = async (params: BuildParameters) => {
+    setShowBuildDialog(false);
+    setShowProgressModal(true);
     setIsAppizing(true);
-    setAppizeStatus("Preparing configuration...");
-    
+    setBuildStatus(null);
+
     try {
       const yamlConfig = generateYAML(formData);
       
-      setAppizeStatus("Submitting to server...");
+      const orchestrator = new AppBuildOrchestrator(
+        params.githubToken,
+        params.repository,
+        (status) => setBuildStatus(status)
+      );
+
+      const result = await orchestrator.buildApp({
+        platforms: params.platforms,
+        dockerImage: params.dockerImage,
+        yamlConfig,
+        buildType: params.buildType,
+        skipErrors: params.skipErrors,
+      });
+
+      setBuildStatus(result);
+      setIsAppizing(false);
       
-      const response = await fetch('/api/appize', {
+    } catch (error) {
+      console.error("Build error:", error);
+      setBuildStatus({
+        status: 'error',
+        message: `Build failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        progress: 0,
+        logs: [`Error: ${error instanceof Error ? error.message : 'Unknown error'}`],
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      setIsAppizing(false);
+    }
+  };
+
+  const handleDownloadArtifact = async (artifact: { platform: string; filename: string; downloadUrl: string }) => {
+    try {
+      // In a real implementation, this would download from the codespace
+      // For now, we'll simulate the download
+      const response = await fetch('/api/download-artifact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ config: yamlConfig }),
+        body: JSON.stringify({ artifact }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = artifact.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Download failed');
       }
-
-      const result = await response.json();
-      setAppizeStatus(`Success! ${result.message || 'Configuration deployed successfully'}`);
-      
-      setTimeout(() => {
-        setAppizeStatus("");
-        setIsAppizing(false);
-      }, 3000);
-      
     } catch (error) {
-      console.error("Appize error:", error);
-      setAppizeStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
-      setTimeout(() => {
-        setAppizeStatus("");
-        setIsAppizing(false);
-      }, 5000);
+      console.error('Download error:', error);
+      alert(`Failed to download ${artifact.filename}: ${error}`);
     }
+  };
+
+  const handleRetryBuild = () => {
+    setShowProgressModal(false);
+    setShowBuildDialog(true);
   };
 
   return (
@@ -233,7 +279,7 @@ export default function ConfigEditor() {
             disabled={isAppizing}
             sx={{ ml: 2 }}
           >
-            {isAppizing ? "Appizing..." : "Appize"}
+            {isAppizing ? "Building..." : "Appize"}
           </Button>
         </Box>
 
@@ -253,6 +299,20 @@ export default function ConfigEditor() {
             {appizeStatus}
           </Alert>
         )}
+
+        <BuildParametersDialog
+          open={showBuildDialog}
+          onClose={() => setShowBuildDialog(false)}
+          onConfirm={handleBuildConfirm}
+        />
+
+        <BuildProgressModal
+          open={showProgressModal}
+          onClose={() => setShowProgressModal(false)}
+          buildStatus={buildStatus}
+          onRetry={handleRetryBuild}
+          onDownload={handleDownloadArtifact}
+        />
       </Paper>
 
       <Paper

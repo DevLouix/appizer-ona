@@ -17,6 +17,16 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SectionRenderer from "./SectionRenderer";
 
+// Utility: set nested value immutably
+function setNested(obj: any, path: string[], value: any): any {
+  if (path.length === 0) return value;
+  const [first, ...rest] = path;
+  return {
+    ...obj,
+    [first]: setNested(obj[first] ?? {}, rest, value),
+  };
+}
+
 interface FieldRendererProps {
   field: FieldSchema;
   value: any;

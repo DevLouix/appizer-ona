@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AppBuildOrchestrator } from '@/lib/codespace-automation';
 
 export async function POST(request: NextRequest) {
   try {
-    const { config } = await request.json();
+    const { config, buildParams } = await request.json();
     
     if (!config) {
       return NextResponse.json(
@@ -11,48 +12,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get environment variables for external server configuration
-    const EXTERNAL_SERVER_URL = process.env.EXTERNAL_SERVER_URL;
+    // Get environment variables
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
     const CODESPACE_REPO = process.env.CODESPACE_REPO || 'https://github.com/DevLouix/appizer-ona.git';
+    const DOCKER_IMAGE = process.env.DOCKER_IMAGE || 'devlouix/appizer:latest';
     
-    if (!EXTERNAL_SERVER_URL) {
+    if (!GITHUB_TOKEN) {
       return NextResponse.json(
-        { error: 'External server URL not configured' },
+        { error: 'GitHub token not configured' },
         { status: 500 }
       );
     }
 
-    // Submit configuration to external server
-    const response = await fetch(`${EXTERNAL_SERVER_URL}/deploy`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(GITHUB_TOKEN && { 'Authorization': `Bearer ${GITHUB_TOKEN}` }),
-      },
-      body: JSON.stringify({
-        config,
-        repository: CODESPACE_REPO,
-        action: 'create_codespace_and_deploy'
-      }),
+    // Use the orchestrator for the build process
+    const orchestrator = new AppBuildOrchestrator(GITHUB_TOKEN, CODESPACE_REPO);
+    
+    const result = await orchestrator.buildApp({
+      platforms: buildParams?.platforms || ['android'],
+      dockerImage: buildParams?.dockerImage || DOCKER_IMAGE,
+      yamlConfig: config,
+      buildType: buildParams?.buildType || 'release',
+      skipErrors: buildParams?.skipErrors || false,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('External server error:', errorText);
-      return NextResponse.json(
-        { error: `External server error: ${response.status}` },
-        { status: response.status }
-      );
-    }
-
-    const result = await response.json();
     
     return NextResponse.json({
-      message: 'Configuration submitted successfully',
-      codespace_url: result.codespace_url,
-      deployment_id: result.deployment_id,
-      status: result.status
+      message: 'Build process completed',
+      status: result.status,
+      progress: result.progress,
+      artifacts: result.artifacts,
+      logs: result.logs
     });
 
   } catch (error) {

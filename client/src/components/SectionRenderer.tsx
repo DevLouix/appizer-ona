@@ -19,7 +19,7 @@ export default function SectionRenderer({
     <Box sx={{ mb: 2 }}>
       <Grid container spacing={2}>
         {schema.map((field) => (
-          <Grid key={field.key} item xs={12}>
+          <Grid key={field.key} size={12}>
             <FieldRenderer
               field={field}
               value={data?.[field.key]}

@@ -7,13 +7,18 @@ import {
   Button,
   Tooltip,
   IconButton,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DownloadIcon from "@mui/icons-material/Download";
-import { useState } from "react";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
+import { useState, useRef } from "react";
 import SectionRenderer from "./SectionRenderer";
 import { generateYAML } from "@/funcs/yaml_geneator";
 import { exampleSchema } from "@/configs/defaultEditor";
+import * as yaml from "js-yaml";
 
 // ---------- Main component ----------
 export default function ConfigEditor() {
@@ -35,6 +40,9 @@ export default function ConfigEditor() {
     buildDefault(exampleSchema)
   );
   const [yamlPreview, setYamlPreview] = useState<string>("");
+  const [isAppizing, setIsAppizing] = useState<boolean>(false);
+  const [appizeStatus, setAppizeStatus] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Merge incoming partial changes (from setNested outputs)
   const applyPartial = (partial: any) => {
@@ -98,6 +106,81 @@ export default function ConfigEditor() {
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        let parsedData: any;
+
+        if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+          parsedData = yaml.load(content);
+        } else if (file.name.endsWith('.json')) {
+          parsedData = JSON.parse(content);
+        } else {
+          alert("Please upload a .yaml, .yml, or .json file");
+          return;
+        }
+
+        // Merge the loaded data with the current form data structure
+        const mergedData = { ...buildDefault(exampleSchema), ...parsedData };
+        setFormData(mergedData);
+        setYamlPreview(generateYAML(mergedData));
+        alert("Configuration loaded successfully!");
+      } catch (error) {
+        console.error("Error parsing file:", error);
+        alert("Error parsing file. Please check the file format.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleLoadFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAppize = async () => {
+    setIsAppizing(true);
+    setAppizeStatus("Preparing configuration...");
+    
+    try {
+      const yamlConfig = generateYAML(formData);
+      
+      setAppizeStatus("Submitting to server...");
+      
+      const response = await fetch('/api/appize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ config: yamlConfig }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setAppizeStatus(`Success! ${result.message || 'Configuration deployed successfully'}`);
+      
+      setTimeout(() => {
+        setAppizeStatus("");
+        setIsAppizing(false);
+      }, 3000);
+      
+    } catch (error) {
+      console.error("Appize error:", error);
+      setAppizeStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      setTimeout(() => {
+        setAppizeStatus("");
+        setIsAppizing(false);
+      }, 5000);
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>
@@ -119,7 +202,7 @@ export default function ConfigEditor() {
 
         <Divider sx={{ my: 2 }} />
 
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
           <Button variant="contained" onClick={handleGenerate}>
             Generate Preview
           </Button>
@@ -135,7 +218,41 @@ export default function ConfigEditor() {
             Download .yaml
           </Button>
           <Button onClick={() => handleDownload("json")}>Download .json</Button>
+          <Button
+            startIcon={<UploadFileIcon />}
+            onClick={handleLoadFile}
+            variant="outlined"
+          >
+            Load Config
+          </Button>
+          <Button
+            startIcon={isAppizing ? <CircularProgress size={16} /> : <RocketLaunchIcon />}
+            onClick={handleAppize}
+            variant="contained"
+            color="success"
+            disabled={isAppizing}
+            sx={{ ml: 2 }}
+          >
+            {isAppizing ? "Appizing..." : "Appize"}
+          </Button>
         </Box>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".yaml,.yml,.json"
+          style={{ display: "none" }}
+        />
+
+        {appizeStatus && (
+          <Alert 
+            severity={appizeStatus.startsWith("Error") ? "error" : "success"} 
+            sx={{ mt: 2 }}
+          >
+            {appizeStatus}
+          </Alert>
+        )}
       </Paper>
 
       <Paper

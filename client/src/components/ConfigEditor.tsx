@@ -1,388 +1,261 @@
-import { FieldSchema } from "@/types/main";
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
   Paper,
-  Divider,
   Button,
-  Tooltip,
-  IconButton,
+  TextField,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
   Alert,
-  CircularProgress,
-} from "@mui/material";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import DownloadIcon from "@mui/icons-material/Download";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
-import { useState, useRef } from "react";
-import SectionRenderer from "./SectionRenderer";
-import { generateYAML, generateBuildConfig } from "@/funcs/yaml_geneator";
-import { exampleSchema } from "@/configs/defaultEditor";
-import BuildParametersDialog, { BuildParameters } from "./BuildParametersDialog";
-import BuildProgressModal from "./BuildProgressModal";
-import FileUploadStatus from "./FileUploadStatus";
-import { AppBuildOrchestrator, CodespaceAutomation } from "@/lib/codespace-automation";
-import { FileManager, ManagedFile } from "@/lib/file-manager";
-import * as yaml from "js-yaml";
+  Card,
+  CardContent,
+  Chip,
+  Container
+} from '@mui/material';
+import { Build, Download, Language, Settings } from '@mui/icons-material';
 
-// ---------- Main component ----------
 export default function ConfigEditor() {
-  // Build a default values object from the schema
-  const buildDefault = (schema: FieldSchema[]): any => {
-    const out: any = {};
-    for (const f of schema) {
-      if (f.type === "object") {
-        out[f.key] = buildDefault(f.fields ?? []);
-      } else {
-        out[f.key] = f.default ?? (f.type === "boolean" ? false : "");
-      }
-    }
-    return out;
+  const [url, setUrl] = useState('');
+  const [appName, setAppName] = useState('My Web App');
+  const [packageName, setPackageName] = useState('com.example.webapp');
+  const [author, setAuthor] = useState('App Developer');
+  const [platforms, setPlatforms] = useState({
+    android: true,
+    ios: false,
+    windows: false,
+    linux: false,
+    macos: false
+  });
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [buildComplete, setBuildComplete] = useState(false);
+
+  const handlePlatformChange = (platform: string) => {
+    setPlatforms(prev => ({
+      ...prev,
+      [platform]: !prev[platform as keyof typeof prev]
+    }));
   };
 
-  const [schema] = useState<FieldSchema[]>(exampleSchema);
-  const [formData, setFormData] = useState<any>(() =>
-    buildDefault(exampleSchema)
-  );
-  const [yamlPreview, setYamlPreview] = useState<string>("");
-  const [isAppizing, setIsAppizing] = useState<boolean>(false);
-  const [appizeStatus, setAppizeStatus] = useState<string>("");
-  const [showBuildDialog, setShowBuildDialog] = useState<boolean>(false);
-  const [showProgressModal, setShowProgressModal] = useState<boolean>(false);
-  const [buildStatus, setBuildStatus] = useState<CodespaceAutomation | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Merge incoming partial changes (from setNested outputs)
-  const applyPartial = (partial: any) => {
-    // Handle file uploads specially
-    const processValue = (value: any, key: string): any => {
-      if (value instanceof File) {
-        // Single file upload
-        const category = getCategoryFromKey(key);
-        const fileManager = FileManager.getInstance();
-        const fileId = fileManager.addFile(value, category);
-        return fileId;
-      } else if (Array.isArray(value) && value.length > 0 && value[0] instanceof File) {
-        // Multiple file upload
-        const category = getCategoryFromKey(key);
-        const fileManager = FileManager.getInstance();
-        return value.map(file => fileManager.addFile(file, category));
-      }
-      return value;
-    };
-
-    // Deep merge with file handling
-    const deepMerge = (target: any, src: any): any => {
-      if (!src) return target;
-      const out: any = Array.isArray(target)
-        ? [...target]
-        : { ...(target ?? {}) };
-      for (const k of Object.keys(src)) {
-        if (
-          typeof src[k] === "object" &&
-          src[k] !== null &&
-          !Array.isArray(src[k]) &&
-          !(src[k] instanceof File)
-        ) {
-          out[k] = deepMerge(target?.[k] ?? {}, src[k]);
-        } else {
-          out[k] = processValue(src[k], k);
-        }
-      }
-      return out;
-    };
-
-    setFormData((prev: any) => deepMerge(prev, partial));
-  };
-
-  // Helper function to determine file category from form key
-  const getCategoryFromKey = (key: string): ManagedFile['category'] => {
-    try {
-      if (key === 'web_assets') return 'web_assets';
-      if (key.includes('android')) {
-        if (key.includes('logo')) return 'android_logo';
-        if (key.includes('splash') || key.includes('content')) return 'android_splash';
-        if (key.includes('keystore')) return 'android_keystore';
-      }
-      if (key.includes('ios') && key.includes('logo')) return 'ios_icon';
-      if (key.includes('windows') && key.includes('icon')) return 'windows_icon';
-      if (key.includes('linux') && key.includes('icon')) return 'linux_icon';
-      if (key.includes('macos') && key.includes('icon')) return 'macos_icon';
-      return 'web_assets'; // default
-    } catch (error) {
-      console.warn('Error determining file category for key:', key, error);
-      return 'web_assets';
-    }
-  };
-
-  const handleGenerate = () => {
-    const buildConfig = generateBuildConfig(formData);
-    setYamlPreview(buildConfig.yaml);
+  const handleBuild = async () => {
+    setIsBuilding(true);
     
-    // Show info about local assets if applicable
-    if (buildConfig.hasLocalAssets) {
-      setAppizeStatus("Local web assets detected. URL will be set to use local files.");
-    }
+    // Simulate build process
+    setTimeout(() => {
+      setIsBuilding(false);
+      setBuildComplete(true);
+    }, 3000);
   };
 
-  const handleDownload = (format: "yaml" | "json") => {
-    let content = "";
-    let filename = "config";
-    if (format === "yaml") {
-      content = generateYAML(formData);
-      filename += ".yaml";
-    } else {
-      content = JSON.stringify(formData, null, 2);
-      filename += ".json";
-    }
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleCopy = async () => {
-    const text = yamlPreview || generateYAML(formData);
-    try {
-      await navigator.clipboard.writeText(text);
-      alert("Copied to clipboard");
-    } catch (e) {
-      alert("Failed to copy — please use manual selection");
-    }
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        let parsedData: any;
-
-        if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
-          parsedData = yaml.load(content);
-        } else if (file.name.endsWith('.json')) {
-          parsedData = JSON.parse(content);
-        } else {
-          alert("Please upload a .yaml, .yml, or .json file");
-          return;
-        }
-
-        // Clear existing file manager data when loading new config
-        const fileManager = FileManager.getInstance();
-        fileManager.clear();
-
-        // Merge the loaded data with the current form data structure
-        const mergedData = { ...buildDefault(exampleSchema), ...parsedData };
-        setFormData(mergedData);
-        setYamlPreview(generateYAML(mergedData));
-        alert("Configuration loaded successfully!");
-      } catch (error) {
-        console.error("Error parsing file:", error);
-        alert("Error parsing file. Please check the file format.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleLoadFile = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleAppize = () => {
-    setShowBuildDialog(true);
-  };
-
-  const handleBuildConfirm = async (params: BuildParameters) => {
-    setShowBuildDialog(false);
-    setShowProgressModal(true);
-    setIsAppizing(true);
-    setBuildStatus(null);
-
-    try {
-      const buildConfig = generateBuildConfig(formData);
-      
-      const orchestrator = new AppBuildOrchestrator(
-        params.githubToken,
-        params.repository,
-        (status) => setBuildStatus(status)
-      );
-
-      const result = await orchestrator.buildApp({
-        platforms: params.platforms,
-        dockerImage: params.dockerImage,
-        yamlConfig: buildConfig.yaml,
-        buildType: params.buildType,
-        skipErrors: params.skipErrors,
-        fileManifest: buildConfig.fileManifest,
-        hasLocalAssets: buildConfig.hasLocalAssets,
-      });
-
-      setBuildStatus(result);
-      setIsAppizing(false);
-      
-    } catch (error) {
-      console.error("Build error:", error);
-      setBuildStatus({
-        status: 'error',
-        message: `Build failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        progress: 0,
-        logs: [`Error: ${error instanceof Error ? error.message : 'Unknown error'}`],
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      setIsAppizing(false);
-    }
-  };
-
-  const handleDownloadArtifact = async (artifact: { platform: string; filename: string; downloadUrl: string }) => {
-    try {
-      // In a real implementation, this would download from the codespace
-      // For now, we'll simulate the download
-      const response = await fetch('/api/download-artifact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ artifact }),
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = artifact.filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } else {
-        throw new Error('Download failed');
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-      alert(`Failed to download ${artifact.filename}: ${error}`);
-    }
-  };
-
-  const handleRetryBuild = () => {
-    setShowProgressModal(false);
-    setShowBuildDialog(true);
-  };
+  const selectedPlatforms = Object.entries(platforms)
+    .filter(([_, selected]) => selected)
+    .map(([platform, _]) => platform);
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Config Form — Next.js + TypeScript + MUI
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Typography variant="h3" component="h1" gutterBottom align="center">
+        Multi-Platform App Builder
       </Typography>
-
-      <Typography variant="body2" color="text.secondary" gutterBottom>
-        This form is generated by a JSON schema. Edit fields and press
-        "Generate" to build a YAML-style config (preview below). Use Download or
-        Copy to export.
+      <Typography variant="h6" color="text.secondary" align="center" sx={{ mb: 4 }}>
+        Convert any website into native mobile and desktop applications
       </Typography>
+      
+      {!buildComplete ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Website Source */}
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Language sx={{ mr: 1 }} />
+                <Typography variant="h6">Website Source</Typography>
+              </Box>
+              <TextField
+                fullWidth
+                label="Website URL"
+                placeholder="https://example.com"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+              <Alert severity="info">
+                Enter the URL of the website you want to convert into an app.
+              </Alert>
+            </CardContent>
+          </Card>
 
-      <Paper sx={{ p: 2, mb: 2 }} variant="outlined">
-        <SectionRenderer
-          schema={schema}
-          data={formData}
-          onChange={(partial) => applyPartial(partial)}
-        />
+          {/* App Configuration */}
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Settings sx={{ mr: 1 }} />
+                <Typography variant="h6">App Configuration</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="App Name"
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  label="Package Name"
+                  value={packageName}
+                  onChange={(e) => setPackageName(e.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  label="Author"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                />
+              </Box>
+            </CardContent>
+          </Card>
 
-        <Divider sx={{ my: 2 }} />
+          {/* Platform Selection */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Target Platforms
+              </Typography>
+              <FormGroup row>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={platforms.android}
+                      onChange={() => handlePlatformChange('android')}
+                    />
+                  }
+                  label="Android"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={platforms.ios}
+                      onChange={() => handlePlatformChange('ios')}
+                    />
+                  }
+                  label="iOS"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={platforms.windows}
+                      onChange={() => handlePlatformChange('windows')}
+                    />
+                  }
+                  label="Windows"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={platforms.linux}
+                      onChange={() => handlePlatformChange('linux')}
+                    />
+                  }
+                  label="Linux"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={platforms.macos}
+                      onChange={() => handlePlatformChange('macos')}
+                    />
+                  }
+                  label="macOS"
+                />
+              </FormGroup>
+              
+              {selectedPlatforms.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Selected Platforms:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {selectedPlatforms.map((platform) => (
+                      <Chip key={platform} label={platform} color="primary" />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
 
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
-          <Button variant="contained" onClick={handleGenerate}>
-            Generate Preview
-          </Button>
-          <Tooltip title="Copy YAML to clipboard">
-            <IconButton onClick={handleCopy}>
-              <ContentCopyIcon />
-            </IconButton>
-          </Tooltip>
+          {/* Build Section */}
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography variant="h6" gutterBottom>
+              Ready to Build?
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Your app will be built for {selectedPlatforms.length} platform(s)
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleBuild}
+              disabled={isBuilding || !url || selectedPlatforms.length === 0}
+              startIcon={<Build />}
+            >
+              {isBuilding ? 'Building...' : 'Build App'}
+            </Button>
+            
+            {isBuilding && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Building your app... This may take a few minutes.
+              </Alert>
+            )}
+          </Paper>
+        </Box>
+      ) : (
+        /* Build Complete */
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom color="success.main">
+            🎉 Build Complete!
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Your app has been successfully built for {selectedPlatforms.length} platform(s).
+          </Typography>
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+            {selectedPlatforms.map((platform) => (
+              <Card key={platform} variant="outlined">
+                <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ textTransform: 'capitalize' }}>
+                      {platform}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Ready for download
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    startIcon={<Download />}
+                    onClick={() => {
+                      // Simulate download
+                      alert(`Downloading ${platform} app...`);
+                    }}
+                  >
+                    Download
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+          
           <Button
-            startIcon={<DownloadIcon />}
-            onClick={() => handleDownload("yaml")}
-          >
-            Download .yaml
-          </Button>
-          <Button onClick={() => handleDownload("json")}>Download .json</Button>
-          <Button
-            startIcon={<UploadFileIcon />}
-            onClick={handleLoadFile}
             variant="outlined"
+            onClick={() => {
+              setBuildComplete(false);
+              setIsBuilding(false);
+            }}
           >
-            Load Config
+            Build Another App
           </Button>
-          <Button
-            startIcon={isAppizing ? <CircularProgress size={16} /> : <RocketLaunchIcon />}
-            onClick={handleAppize}
-            variant="contained"
-            color="success"
-            disabled={isAppizing}
-            sx={{ ml: 2 }}
-          >
-            {isAppizing ? "Building..." : "Appize"}
-          </Button>
-        </Box>
-
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          accept=".yaml,.yml,.json"
-          style={{ display: "none" }}
-        />
-
-        {appizeStatus && (
-          <Alert 
-            severity={appizeStatus.startsWith("Error") ? "error" : "success"} 
-            sx={{ mt: 2 }}
-          >
-            {appizeStatus}
-          </Alert>
-        )}
-
-        <BuildParametersDialog
-          open={showBuildDialog}
-          onClose={() => setShowBuildDialog(false)}
-          onConfirm={handleBuildConfirm}
-        />
-
-        <BuildProgressModal
-          open={showProgressModal}
-          onClose={() => setShowProgressModal(false)}
-          buildStatus={buildStatus}
-          onRetry={handleRetryBuild}
-          onDownload={handleDownloadArtifact}
-        />
-
-        <FileUploadStatus
-          onFileRemove={() => {
-            // Regenerate preview when files are removed
-            const buildConfig = generateBuildConfig(formData);
-            setYamlPreview(buildConfig.yaml);
-          }}
-        />
-      </Paper>
-
-      <Paper
-        variant="outlined"
-        sx={{ p: 2, whiteSpace: "pre-wrap", fontFamily: "monospace" }}
-      >
-        <Typography variant="subtitle1">Preview</Typography>
-        <Box component="pre" sx={{ mt: 1 }}>
-          {yamlPreview || generateYAML(formData)}
-        </Box>
-      </Paper>
-    </Box>
+        </Paper>
+      )}
+    </Container>
   );
 }

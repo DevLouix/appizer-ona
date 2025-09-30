@@ -6,10 +6,10 @@ import sys
 # Import functions from your src package
 from modifiers.android import inject_into_android_files
 from utils.config_loader import load_yaml_file, merge_configs
-# from modifiers.ios import inject_into_ios_files # Future: Uncomment and implement
-# from modifiers.linux import inject_into_linux_files # Future: Uncomment and implement
-from modifiers.windows import inject_into_windows_files # Future: Uncomment and implement
-# from modifiers.macos import inject_into_macos_files # Future: Uncomment and implement
+from modifiers.ios import inject_into_ios_files
+from modifiers.linux import inject_into_linux_files
+from modifiers.windows import inject_into_windows_files
+from modifiers.macos import inject_into_macos_files
 
 
 if __name__ == "__main__":
@@ -80,12 +80,12 @@ if __name__ == "__main__":
                 "url": ios_config_data.get("url", common_url),
                 **ios_config_data
             }
-            # inject_into_ios_files(merged_ios_config, ios_project_root_in_container, container_multi_platform_root, webapp_assets_dir)
-            pass
+
+            inject_into_macos_files(merged_macos_config, macos_project_root_in_container, container_multi_platform_root, webapp_assets_dir)
         else:
             print(f"--- [main.py] Skipping iOS file modification for platform: {platform} ---")
 
-        # --- Linux Modifier Call (Placeholder) ---
+        # --- Linux Modifier Call ---
         if platform == "all" or platform == "linux":
             print("--- [main.py] Invoking Linux file modification (Placeholder) ---")
             linux_config_data = platform_specific_configs.get("linux", {})
@@ -95,8 +95,8 @@ if __name__ == "__main__":
                 "url": linux_config_data.get("url", common_url),
                 **linux_config_data
             }
-            # inject_into_linux_files(merged_linux_config, linux_project_root_in_container, container_multi_platform_root, webapp_assets_dir)
-            pass
+
+            inject_into_macos_files(merged_macos_config, macos_project_root_in_container, container_multi_platform_root, webapp_assets_dir)
         else:
             print(f"--- [main.py] Skipping Linux file modification for platform: {platform} ---")
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         else:
             print(f"--- [main.py] Skipping Windows file modification for platform: {platform} ---")
 
-        # --- macOS Modifier Call (Placeholder) ---
+        # --- macOS Modifier Call ---
         if platform == "all" or platform == "macos":
             print("--- [main.py] Invoking macOS file modification (Placeholder) ---")
             macos_config_data = platform_specific_configs.get("macos", {})
@@ -125,8 +125,8 @@ if __name__ == "__main__":
                 "url": macos_config_data.get("url", common_url),
                 **macos_config_data
             }
-            # inject_into_macos_files(merged_macos_config, macos_project_root_in_container, container_multi_platform_root, webapp_assets_dir)
-            pass
+
+            inject_into_macos_files(merged_macos_config, macos_project_root_in_container, container_multi_platform_root, webapp_assets_dir)
         else:
             print(f"--- [main.py] Skipping macOS file modification for platform: {platform} ---")
 

@@ -1,8 +1,6 @@
-"use client"
-import ConfigEditor from "@/components/ConfigEditor";
+"use client";
+import AdvancedConfigEditor from "@/components/AdvancedConfigEditor";
 
 export default function Home() {
-  return (
-    <ConfigEditor />
-  );
+  return <AdvancedConfigEditor />;
 }

@@ -1,38 +1,42 @@
-import { FieldSchema } from "@/types/main";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   Accordion,
-  AccordionSummary,
-  Typography,
   AccordionDetails,
-  Paper,
-  TextField,
-  FormControlLabel,
-  Switch,
+  AccordionSummary,
   Box,
   FormControl,
+  FormControlLabel,
   InputLabel,
-  Select,
   MenuItem,
+  Paper,
+  Select,
+  Switch,
+  TextField,
+  Typography,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import SectionRenderer from "./SectionRenderer";
+import type { FieldSchema } from "@/types/main";
 import FileUploadField from "./FileUploadField";
+import SectionRenderer from "./SectionRenderer";
 
 // Utility: set nested value immutably
-function setNested(obj: any, path: string[], value: any): any {
-  if (path.length === 0) return value;
+function setNested(
+  obj: Record<string, unknown>,
+  path: string[],
+  value: unknown,
+): Record<string, unknown> {
+  if (path.length === 0) return value as Record<string, unknown>;
   const [first, ...rest] = path;
   return {
     ...obj,
-    [first]: setNested(obj[first] ?? {}, rest, value),
+    [first]: setNested((obj[first] as Record<string, unknown>) ?? {}, rest, value),
   };
 }
 
 interface FieldRendererProps {
   field: FieldSchema;
-  value: any;
+  value: unknown;
   path: string[];
-  onChange: (newPartial: any) => void; // receives updated nested object at top-level for the whole form
+  onChange: (newPartial: Record<string, unknown>) => void; // receives updated nested object at top-level for the whole form
 }
 
 export function FieldRenderer({
@@ -42,7 +46,7 @@ export function FieldRenderer({
   onChange,
 }: FieldRendererProps) {
   const id = path.join(".");
-  const handlePrimitiveChange = (v: any) => {
+  const handlePrimitiveChange = (v: unknown) => {
     // We build an object that sets the nested path to v when merged by parent
     onChange(setNested({}, path, v));
   };
@@ -163,7 +167,7 @@ export function FieldRenderer({
       return (
         <FileUploadField
           label={field.label ?? field.key}
-          value={value}
+          value={value as string | string[] | File | File[] | null}
           onChange={handlePrimitiveChange}
           accept={field.accept}
           multiple={field.type === "files" || field.multiple}

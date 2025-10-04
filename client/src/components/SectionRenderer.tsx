@@ -1,5 +1,5 @@
-import { FieldSchema } from "@/types/main";
 import { Box, Grid } from "@mui/material";
+import type { FieldSchema } from "@/types/main";
 import { FieldRenderer } from "./FieldRenderer";
 
 interface SectionRendererProps {

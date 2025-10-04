@@ -1,6 +1,6 @@
 // ---------- Example schema derived from your YAML-style config ----------
 
-import { FieldSchema } from "@/types/main";
+import type { FieldSchema } from "@/types/main";
 
 // This schema will drive form rendering. You can replace or extend it at runtime.
 export const exampleSchema: FieldSchema[] = [
@@ -36,12 +36,12 @@ export const exampleSchema: FieldSchema[] = [
         label: "Android",
         type: "object",
         fields: [
-          { 
-            key: "logo", 
-            label: "App Logo/Icon", 
-            type: "file", 
+          {
+            key: "logo",
+            label: "App Logo/Icon",
+            type: "file",
             accept: ".png,.jpg,.jpeg,.svg",
-            hint: "Upload app icon/logo image. Will be resized for different screen densities."
+            hint: "Upload app icon/logo image. Will be resized for different screen densities.",
           },
           {
             key: "splash",
@@ -225,12 +225,12 @@ export const exampleSchema: FieldSchema[] = [
           },
         ],
       },
-      { 
-        key: "logo", 
-        label: "App Icon", 
-        type: "file", 
+      {
+        key: "logo",
+        label: "App Icon",
+        type: "file",
         accept: ".png,.jpg,.jpeg,.icns",
-        hint: "Upload app icon for iOS"
+        hint: "Upload app icon for iOS",
       },
       {
         key: "splash",
@@ -244,12 +244,12 @@ export const exampleSchema: FieldSchema[] = [
             options: ["color", "image"],
             default: "color",
           },
-          { 
-            key: "content", 
-            label: "Splash Image", 
-            type: "file", 
+          {
+            key: "content",
+            label: "Splash Image",
+            type: "file",
             accept: ".png,.jpg,.jpeg",
-            hint: "Upload splash screen image for iOS"
+            hint: "Upload splash screen image for iOS",
           },
           {
             key: "duration",
@@ -311,12 +311,12 @@ export const exampleSchema: FieldSchema[] = [
           },
         ],
       },
-      { 
-        key: "icon", 
-        label: "App Icon", 
-        type: "file", 
+      {
+        key: "icon",
+        label: "App Icon",
+        type: "file",
         accept: ".png,.jpg,.jpeg,.ico",
-        hint: "Upload app icon for Linux desktop"
+        hint: "Upload app icon for Linux desktop",
       },
     ],
   }, // Windows (trimmed)
@@ -364,12 +364,12 @@ export const exampleSchema: FieldSchema[] = [
           },
         ],
       },
-      { 
-        key: "icon", 
-        label: "App Icon", 
-        type: "file", 
+      {
+        key: "icon",
+        label: "App Icon",
+        type: "file",
         accept: ".png,.jpg,.jpeg,.ico",
-        hint: "Upload app icon for Windows desktop"
+        hint: "Upload app icon for Windows desktop",
       },
     ],
   }, // macOS (trimmed)
@@ -417,12 +417,12 @@ export const exampleSchema: FieldSchema[] = [
           },
         ],
       },
-      { 
-        key: "icon", 
-        label: "App Icon", 
-        type: "file", 
+      {
+        key: "icon",
+        label: "App Icon",
+        type: "file",
         accept: ".png,.jpg,.jpeg,.icns",
-        hint: "Upload app icon for macOS"
+        hint: "Upload app icon for macOS",
       },
     ],
   },
